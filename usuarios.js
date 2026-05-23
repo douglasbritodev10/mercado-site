@@ -53,15 +53,21 @@ function renderUsers(data) {
         if (u.id === auth.currentUser.uid) return;
 
         const div = document.createElement('div');
-        div.className = `glass-card user-card ${u.role}`;
+        // Mantemos a classe original para o efeito de borda colorida
+        div.className = `glass-card user-card ${u.role}`; 
+        
         div.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="mb-0 fw-bold">${u.nome}</h6>
-                    <small class="text-muted">${u.email}</small><br>
-                    <span class="badge badge-role ${getBadgeClass(u.role)}">${u.role}</span>
+            <div class="user-card-content">
+                <div class="user-info">
+                    <strong class="text-uppercase d-block">${u.nome}</strong>
+                    <span class="small text-muted">${u.email}</span>
+                    <div class="badge-role bg-light mt-1 d-inline-block ${getBadgeClass(u.role)} text-white">
+                        ${u.role}
+                    </div>
                 </div>
-                <button class="btn btn-sm btn-outline-primary" onclick="window.openEditUser('${u.id}')">Gerenciar</button>
+                <button class="btn btn-sm btn-outline-danger btn-gerenciar" onclick="window.openEditUser('${u.id}')">
+                    Gerenciar
+                </button>
             </div>
         `;
         box.appendChild(div);
