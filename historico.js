@@ -48,34 +48,42 @@ async function carregarRelatorio() {
     render(todosRegistrosPeriodo);
 }
 
-// --- 3. RENDERIZAR NA TELA ---
 function render(data) {
     const area = document.getElementById('logArea');
     area.innerHTML = data.length ? "" : "<p class='text-center opacity-50 mt-4'>Nenhum registro encontrado para este período ou busca.</p>";
     
     data.forEach(h => {
-        // Verifica se é entrada ou saída (ajuste os termos conforme seu Firebase)
         const isSaida = h.tipo === 'compra' || h.tipo === 'Saída' || h.acao?.includes('Exclusão');
         
-// Exemplo de como deve estar no seu historico.js
-area.innerHTML += `
-    <div class="glass-card mb-2 border-start border-4 ${isSaida ? 'border-danger' : 'border-success'}">
-        <div class="hist-item-container">
-            <div class="hist-info">
-                <strong class="d-block text-uppercase">${h.clienteNome || h.usuarioNome}</strong>
-                <small class="text-muted d-block">${h.data}</small>
-                <div class="small fw-bold opacity-75">${h.detalhe || ''}</div>
+        // Se houver valor, é uma operação financeira. Se não, é uma ação de sistema (Cadastro/Edição).
+        const temValor = h.valor !== undefined;
+
+        area.innerHTML += `
+        <div class="glass-card mb-2 border-start border-4 ${isSaida ? 'border-danger' : 'border-success'}">
+            <div class="hist-item-container">
+                <div class="hist-info">
+                    <strong class="d-block text-uppercase text-danger">${h.usuarioNome || 'Sistema'}</strong>
+                    
+                    <small class="text-muted d-block">${h.data}</small>
+                    
+                    <div class="small fw-bold opacity-75 mt-1" style="line-height: 1.2;">
+                        ${h.detalhe || ''}
+                    </div>
+                </div>
+
+                <div class="hist-value-area text-end">
+                    <span class="badge ${isSaida ? 'bg-danger' : 'bg-success'} mb-1" style="font-size:0.65rem">
+                        ${h.acao || h.tipo}
+                    </span>
+
+                    ${temValor ? `
+                        <div class="fw-bold ${isSaida ? 'text-danger' : 'text-success'}">
+                            ${isSaida ? '-' : '+'} R$ ${h.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        </div>
+                    ` : ''}
+                </div>
             </div>
-            <div class="hist-value-area">
-                <span class="fw-bold d-block ${isSaida ? 'text-danger' : 'text-success'}">
-                    ${h.valor ? (isSaida ? '- ' : '+ ') + 'R$ ' + h.valor.toFixed(2) : h.acao}
-                </span>
-                <span class="badge ${isSaida ? 'bg-danger' : 'bg-success'} small" style="font-size:0.65rem">
-                    ${h.tipo || 'LOG'}
-                </span>
-            </div>
-        </div>
-    </div>`;
+        </div>`;
     });
 }
 
