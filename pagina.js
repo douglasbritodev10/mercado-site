@@ -32,13 +32,38 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Suporte PWA (Instalação)
+// --- LOGICA DE INSTALAÇÃO PWA ---
 let deferredPrompt;
+const btnInstalar = document.getElementById('btnInstalar');
+
 window.addEventListener('beforeinstallprompt', (e) => {
+    // Impede que o navegador mostre o aviso padrão imediatamente
     e.preventDefault();
     deferredPrompt = e;
-    // Opcional: Mostrar um botão de instalação aqui se desejar
-    console.log('PWA pronto para instalar');
+    
+    // Verifica se já está rodando como aplicativo (se sim, não mostra o botão)
+    if (!window.matchMedia('(display-mode: standalone)').matches) {
+        btnInstalar.style.display = 'block';
+    }
+});
+
+btnInstalar.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+            console.log('Usuário aceitou a instalação');
+            btnInstalar.style.display = 'none'; // Some após aceitar
+        }
+        deferredPrompt = null;
+    }
+});
+
+// Esconde o botão se a instalação for concluída com sucesso
+window.addEventListener('appinstalled', (evt) => {
+    console.log('App instalado com sucesso!');
+    btnInstalar.style.display = 'none';
 });
 
 // Registrar Service Worker
