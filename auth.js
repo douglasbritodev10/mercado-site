@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, collection, query, where, getDocs } from "https://
 const form = document.getElementById('authForm');
 const toggle = document.getElementById('toggleAuth');
 const regNameInput = document.getElementById('regName');
+const emailInput = document.getElementById('email'); // Capturando o campo de email/user
 const userCheckMsg = document.getElementById('userCheckMsg');
 
 let isLogin = true;
@@ -19,9 +20,22 @@ toggle.onclick = () => {
     toggle.innerHTML = isLogin ? 'Novo por aqui? <span style="color: var(--primary); font-weight: bold;">Cadastre-se</span>' : 'Já tem conta? <span style="color: var(--primary); font-weight: bold;">Entre aqui</span>';
 };
 
-// --- 2. VERIFICAR NOME DE USUÁRIO EM TEMPO REAL ---
+// --- 2. FORÇAR MAIÚSCULAS E LIMITE DE 10 CARACTERES NO INPUT ---
+// Aplicamos aos dois campos para garantir a padronização
+[regNameInput, emailInput].forEach(input => {
+    input.addEventListener('input', (e) => {
+        e.target.value = e.target.value.toUpperCase().substring(0, 10);
+        
+        // Se for o campo de e-mail no LOGIN, não limitamos a 10 se tiver '@' (pois é email real)
+        if(input.id === 'email' && e.target.value.includes('@')) {
+             e.target.value = e.target.value.toUpperCase(); // Apenas maiúsculo
+        }
+    });
+});
+
+// --- 3. VERIFICAR NOME DE USUÁRIO EM TEMPO REAL ---
 regNameInput.addEventListener('input', async (e) => {
-    const nome = e.target.value.trim().toLowerCase();
+    const nome = e.target.value.trim().toUpperCase(); // Sempre buscar em Maiúsculo
     if (nome.length < 3) {
         userCheckMsg.innerText = "";
         return;
@@ -44,10 +58,10 @@ regNameInput.addEventListener('input', async (e) => {
     }
 });
 
-// --- 3. SUBMISSÃO DO FORMULÁRIO (LOGIN HÍBRIDO) ---
+// --- 4. SUBMISSÃO DO FORMULÁRIO ---
 form.onsubmit = async (e) => {
     e.preventDefault();
-    const loginInput = document.getElementById('email').value.trim(); // Pode ser e-mail ou username
+    const loginInput = emailInput.value.trim().toUpperCase(); 
     const pass = document.getElementById('password').value;
     const btn = document.getElementById('btnMain');
     
@@ -56,72 +70,52 @@ form.onsubmit = async (e) => {
 
     try {
         if (isLogin) {
-            // LÓGICA DE IDENTIFICAÇÃO (E-mail ou Username)
             let emailParaLogin = loginInput;
 
-            // Se não contém '@', buscamos o e-mail correspondente ao nome de usuário no Firestore
+            // Se não contém '@', buscamos o e-mail pelo NOME em MAIÚSCULO
             if (!loginInput.includes('@')) {
-                const q = query(collection(db, "usuarios"), where("nome", "==", loginInput.toLowerCase()));
+                const q = query(collection(db, "usuarios"), where("nome", "==", loginInput));
                 const querySnapshot = await getDocs(q);
                 
                 if (querySnapshot.empty) {
                     throw new Error("Nome de usuário não encontrado.");
                 }
-                
-                // Extrai o e-mail do documento encontrado
                 emailParaLogin = querySnapshot.docs[0].data().email;
             }
 
-            // Tenta o login com o e-mail resolvido
-            const res = await signInWithEmailAndPassword(auth, emailParaLogin, pass);
-            
-            // VERIFICAR NÍVEL DE ACESSO NO BANCO APÓS LOGIN
+            const res = await signInWithEmailAndPassword(auth, emailParaLogin.toLowerCase(), pass);
             const userDoc = await getDoc(doc(db, "usuarios", res.user.uid));
             
             if (userDoc.exists()) {
                 const role = userDoc.data().role;
-                if (role === "admin" || role === "colaborador") {
-                    window.location.href = "pagina.html";
-                } else {
-                    window.location.href = "aguardar.html";
-                }
+                window.location.href = (role === "admin" || role === "colaborador") ? "pagina.html" : "aguardar.html";
             } else {
                 window.location.href = "aguardar.html";
             }
 
         } else {
-            // LÓGICA DE CADASTRO
-            const name = regNameInput.value.trim().toLowerCase();
-            const email = document.getElementById('email').value.trim();
+            // CADASTRO
+            const name = regNameInput.value.trim().toUpperCase();
+            const email = emailInput.value.trim().toLowerCase(); // Email sempre salva lowcase no Auth
             
-            if (!isNameAvailable) {
-                throw new Error("Escolha um nome de usuário disponível.");
-            }
+            if (!isNameAvailable) throw new Error("Escolha um nome disponível.");
 
-            // 1. Cria no Auth
             const res = await createUserWithEmailAndPassword(auth, email, pass);
-            
-            // 2. Atualiza perfil
             await updateProfile(res.user, { displayName: name });
 
-            // 3. Salva dados extras e nível no Firestore
             await setDoc(doc(db, "usuarios", res.user.uid), {
-                nome: name,
+                nome: name, // Salva em MAIÚSCULO
                 email: email,
                 role: "cliente", 
                 dataCriacao: new Date().toISOString()
             });
 
-            alert("Cadastro realizado! Aguarde a liberação.");
+            alert("Cadastro realizado!");
             window.location.href = "aguardar.html";
         }
     } catch (err) {
-        // Tratamento de erros amigável
         let msg = err.message;
-        if(err.code === 'auth/invalid-credential') msg = "Usuário ou senha incorretos.";
-        if(err.code === 'auth/wrong-password') msg = "Senha incorreta.";
-        if(err.code === 'auth/user-not-found') msg = "E-mail não cadastrado.";
-        
+        if(err.code === 'auth/invalid-credential') msg = "Dados incorretos.";
         alert("Erro: " + msg);
         btn.disabled = false;
         btn.innerText = isLogin ? "Acessar" : "Cadastrar";
