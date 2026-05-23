@@ -1,0 +1,39 @@
+        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; }
+        .header-nav { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 1000; }
+        .nav-left { display: flex; align-items: center; gap: 10px; width: 30%; }
+        .nav-center { flex-grow: 1; text-align: center; font-weight: bold; font-size: 1.1rem; }
+        .nav-right { width: 30%; text-align: right; }
+        .btn-custom { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600; }
+        .form-control { background: rgba(255,255,255,0.9) !important; border-radius: 8px; }
+        .fab { position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); text-decoration: none; }
+        .client-card { background: rgba(255,255,255,0.08); border: none; border-left: 5px solid #555; margin-bottom: 12px; transition: 0.3s; cursor: pointer; }
+        .client-card.danger { border-left-color: var(--primary); background: rgba(211, 47, 47, 0.1); }
+        .client-card.ok { border-left-color: #2e7d32; }
+        a { text-decoration: none; color: inherit; }
+    
+        body { display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="glass-card text-center" style="width: 90%; max-width: 400px;">
+        <h3 id="authTitle" class="mb-4">Entrar</h3>
+        <form id="authForm" class="text-start">
+            <div id="userBox" style="display:none;" class="mb-3">
+                <label class="small">Nome de Usuário</label>
+                <input type="text" id="regName" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="small">E-mail</label>
+                <input type="email" id="email" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="small">Senha</label>
+                <input type="password" id="password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-custom w-100" id="btnMain">Acessar</button>
+        </form>
+        <p class="mt-3 small" style="cursor:pointer; color: #aaa;" id="toggleAuth">Novo por aqui? Cadastre-se</p>
+    </div>
+    <script type="module" src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "Casa & Canil Gestão",
+  "short_name": "CasaCanil",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#d32f2f",
+  "icons": [
+    { "src": "logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

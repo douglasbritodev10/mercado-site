@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Casa & Canil</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #d32f2f; --bg: #121212; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height: 100vh; margin: 0; }
+        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; }
+        .header-nav { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 1000; }
+        .nav-left { display: flex; align-items: center; gap: 10px; width: 30%; }
+        .nav-center { flex-grow: 1; text-align: center; font-weight: bold; font-size: 1.1rem; }
+        .nav-right { width: 30%; text-align: right; }
+        .btn-custom { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600; }
+        .form-control { background: rgba(255,255,255,0.9) !important; border-radius: 8px; }
+        .fab { position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); text-decoration: none; }
+        .client-card { background: rgba(255,255,255,0.08); border: none; border-left: 5px solid #555; margin-bottom: 12px; transition: 0.3s; cursor: pointer; }
+        .client-card.danger { border-left-color: var(--primary); background: rgba(211, 47, 47, 0.1); }
+        .client-card.ok { border-left-color: #2e7d32; }
+        a { text-decoration: none; color: inherit; }
+    </style>
+</head>
+<body>
+    <div class="header-nav">
+        <div class="nav-left"><span id="userName" class="small fw-bold">...</span></div>
+        <div class="nav-center">CASA & CANIL</div>
+        <div class="nav-right"><button class="btn btn-sm btn-outline-light" id="logout">Sair</button></div>
+    </div>
+
+    <div class="container mt-3">
+        <div class="d-flex gap-2 mb-3">
+            <input type="text" id="searchClient" class="form-control" placeholder="Buscar cliente...">
+            <button class="btn btn-custom" id="btnInstallPWA" style="display:none;">Instalar</button>
+        </div>
+        
+        <div class="row mb-3 text-center">
+            <div class="col-6">
+                <a href="clientes.html" class="glass-card d-block p-3">
+                    <span class="d-block mb-1">👥</span> Clientes
+                </a>
+            </div>
+            <div class="col-6">
+                <a href="historico.html" class="glass-card d-block p-3">
+                    <span class="d-block mb-1">📜</span> Histórico
+                </a>
+            </div>
+        </div>
+
+        <div id="listaDestaque">
+            <h6 class="text-uppercase small opacity-50 mb-3">Resumo de Saldos</h6>
+            <div id="renderLista"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Operação Rápida -->
+    <div class="modal fade" id="modalQuickOp" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary"><h5 id="qNome">Anotar</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body text-center">
+                    <input type="number" id="qValor" class="form-control mb-3 fs-3 text-center" placeholder="0,00">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-danger w-100 py-3" id="qCompra">COMPRA 🔴</button>
+                        <button class="btn btn-success w-100 py-3" id="qPaga">PAGOU 🟢</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="pagina.js"></script>
+</body>
+</html>
