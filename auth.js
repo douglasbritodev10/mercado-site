@@ -43,7 +43,7 @@ form.onsubmit = async (e) => {
             await setDoc(doc(db, "usuarios", res.user.uid), {
                 nome: name,
                 email: email,
-                role: "colaborador",
+                role: "cliente",
                 dataCriacao: new Date().toISOString()
             });
 
