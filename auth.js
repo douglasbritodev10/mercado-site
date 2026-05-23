@@ -44,10 +44,10 @@ regNameInput.addEventListener('input', async (e) => {
     }
 });
 
-// --- 3. SUBMISSÃO DO FORMULÁRIO ---
+// --- 3. SUBMISSÃO DO FORMULÁRIO (LOGIN HÍBRIDO) ---
 form.onsubmit = async (e) => {
     e.preventDefault();
-    const email = document.getElementById('email').value;
+    const loginInput = document.getElementById('email').value.trim(); // Pode ser e-mail ou username
     const pass = document.getElementById('password').value;
     const btn = document.getElementById('btnMain');
     
@@ -56,10 +56,26 @@ form.onsubmit = async (e) => {
 
     try {
         if (isLogin) {
-            // LOGIN
-            const res = await signInWithEmailAndPassword(auth, email, pass);
+            // LÓGICA DE IDENTIFICAÇÃO (E-mail ou Username)
+            let emailParaLogin = loginInput;
+
+            // Se não contém '@', buscamos o e-mail correspondente ao nome de usuário no Firestore
+            if (!loginInput.includes('@')) {
+                const q = query(collection(db, "usuarios"), where("nome", "==", loginInput.toLowerCase()));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    throw new Error("Nome de usuário não encontrado.");
+                }
+                
+                // Extrai o e-mail do documento encontrado
+                emailParaLogin = querySnapshot.docs[0].data().email;
+            }
+
+            // Tenta o login com o e-mail resolvido
+            const res = await signInWithEmailAndPassword(auth, emailParaLogin, pass);
             
-            // VERIFICAR NÍVEL DE ACESSO NO BANCO
+            // VERIFICAR NÍVEL DE ACESSO NO BANCO APÓS LOGIN
             const userDoc = await getDoc(doc(db, "usuarios", res.user.uid));
             
             if (userDoc.exists()) {
@@ -70,34 +86,43 @@ form.onsubmit = async (e) => {
                     window.location.href = "aguardar.html";
                 }
             } else {
-                // Caso o usuário exista no Auth mas não no Firestore (segurança extra)
                 window.location.href = "aguardar.html";
             }
 
         } else {
-            // CADASTRO
+            // LÓGICA DE CADASTRO
             const name = regNameInput.value.trim().toLowerCase();
+            const email = document.getElementById('email').value.trim();
             
             if (!isNameAvailable) {
-                throw new Error("Por favor, escolha um nome de usuário disponível.");
+                throw new Error("Escolha um nome de usuário disponível.");
             }
 
+            // 1. Cria no Auth
             const res = await createUserWithEmailAndPassword(auth, email, pass);
+            
+            // 2. Atualiza perfil
             await updateProfile(res.user, { displayName: name });
 
-            // SALVAR NO FIRESTORE COM ROLE PADRÃO 'CLIENTE'
+            // 3. Salva dados extras e nível no Firestore
             await setDoc(doc(db, "usuarios", res.user.uid), {
                 nome: name,
                 email: email,
-                role: "cliente", // Todo novo usuário começa bloqueado
+                role: "cliente", 
                 dataCriacao: new Date().toISOString()
             });
 
-            alert("Cadastro realizado! Aguarde a liberação do administrador.");
+            alert("Cadastro realizado! Aguarde a liberação.");
             window.location.href = "aguardar.html";
         }
     } catch (err) {
-        alert("Erro: " + err.message);
+        // Tratamento de erros amigável
+        let msg = err.message;
+        if(err.code === 'auth/invalid-credential') msg = "Usuário ou senha incorretos.";
+        if(err.code === 'auth/wrong-password') msg = "Senha incorreta.";
+        if(err.code === 'auth/user-not-found') msg = "E-mail não cadastrado.";
+        
+        alert("Erro: " + msg);
         btn.disabled = false;
         btn.innerText = isLogin ? "Acessar" : "Cadastrar";
     }
