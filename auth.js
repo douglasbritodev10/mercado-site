@@ -21,30 +21,29 @@ form.onsubmit = async (e) => {
     const pass = document.getElementById('password').value;
     const btn = document.getElementById('btnMain');
     
-    // Bloqueia o botão para evitar múltiplos cliques
     btn.disabled = true;
     btn.innerText = "Processando...";
 
     try {
         if(isLogin) {
             await signInWithEmailAndPassword(auth, email, pass);
-            window.location.href = "pagina.html"; // Use o nome correto da sua página
+            // IMPORTANTE: Verifique se o nome do arquivo é dashboard.html ou pagina.html
+            window.location.href = "pagina.html"; 
         } else {
             const name = document.getElementById('regName').value;
             if(!name) throw new Error("Por favor, digite um nome de usuário.");
-            if(pass.length < 6) throw new Error("A senha deve ter pelo menos 6 caracteres.");
-
+            
+            // 1. Cria o usuário no Auth
             const res = await createUserWithEmailAndPassword(auth, email, pass);
             
-            // Atualiza o perfil no Authentication
+            // 2. Atualiza o nome no Perfil
             await updateProfile(res.user, { displayName: name });
 
-            // SALVANDO NA COLEÇÃO (O que você sentiu falta):
-            // Criamos um documento na coleção 'usuarios' com o ID do Auth
+            // 3. Salva no Firestore (Só vai funcionar se você mudar as REGRAS acima)
             await setDoc(doc(db, "usuarios", res.user.uid), {
                 nome: name,
                 email: email,
-                role: "colaborador", // Padrão
+                role: "colaborador",
                 dataCriacao: new Date().toISOString()
             });
 
@@ -52,8 +51,12 @@ form.onsubmit = async (e) => {
             window.location.href = "pagina.html";
         }
     } catch (err) {
-        console.error("Erro detalhado:", err.code, err.message);
-        alert("Erro: " + err.message);
+        console.error("Erro detalhado:", err.code);
+        if (err.code === 'auth/email-already-in-use') {
+            alert("Este e-mail já está cadastrado. Tente fazer login.");
+        } else {
+            alert("Erro: " + err.message);
+        }
         btn.disabled = false;
         btn.innerText = isLogin ? "Acessar" : "Cadastrar";
     }
