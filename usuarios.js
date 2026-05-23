@@ -53,7 +53,7 @@ function renderUsers(data) {
         if (u.id === auth.currentUser.uid) return;
 
         const div = document.createElement('div');
-        // Mantemos a classe original para o efeito de borda colorida
+        // Mantemos a classe original para o efeito de borda lateral colorida
         div.className = `glass-card user-card ${u.role}`; 
         
         div.innerHTML = `
@@ -61,7 +61,7 @@ function renderUsers(data) {
                 <div class="user-info">
                     <strong class="text-uppercase d-block">${u.nome}</strong>
                     <span class="small text-muted">${u.email}</span>
-                    <div class="badge-role bg-light mt-1 d-inline-block ${getBadgeClass(u.role)} text-white">
+                    <div class="badge-role mt-1 d-inline-block ${getBadgeClass(u.role)} text-white">
                         ${u.role}
                     </div>
                 </div>
