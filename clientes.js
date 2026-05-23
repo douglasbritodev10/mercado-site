@@ -1,16 +1,20 @@
 import { db, auth } from './firebase-config.js';
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 let clients = [];
+let currentUserData = null; // Para guardar o nome do admin logado
 const modal = new bootstrap.Modal('#modalAdd');
 
-// --- 1. PROTEÇÃO DE ACESSO ADM ---
+// --- 1. PROTEÇÃO DE ACESSO E NOME NO TOPO ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         const userDoc = await getDoc(doc(db, "usuarios", user.uid));
         if (userDoc.exists() && userDoc.data().role === "admin") {
-            load(); // Só carrega se for admin
+            currentUserData = userDoc.data();
+            // Exibe o nome do usuário ao lado do botão voltar
+            document.getElementById('userNameDisplay').innerText = `Olá, ${currentUserData.nome || 'Admin'}`;
+            load(); 
         } else {
             alert("Acesso restrito apenas para administradores.");
             window.location.href = "pagina.html";
@@ -20,23 +24,36 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- 2. MÁSCARAS E FORMATAÇÃO ---
-// Máscara de CPF em tempo real
+// --- 2. MÁSCARA DE CPF MELHORADA ---
 document.getElementById('cCPF').addEventListener('input', (e) => {
-    let v = e.target.value.replace(/\D/g, "");
-    if (v.length > 11) v = v.substring(0, 11);
-    v = v.replace(/(\idx{3})(\idx{3})(\idx{3})(\idx{2})/, "$1.$2.$3-$4");
+    let v = e.target.value.replace(/\D/g, ""); // Remove tudo que não é número
+    
+    if (v.length <= 11) {
+        v = v.replace(/(\d{3})(\d)/, "$1.$2");
+        v = v.replace(/(\d{3})(\d)/, "$1.$2");
+        v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    }
     e.target.value = v;
 });
 
-// Função para converter "1.500,50" em 1500.50 (para o Firebase)
-function formatCurrencyToNumber(amount) {
-    if(!amount) return 0;
-    // Remove os pontos de milhar e troca a vírgula por ponto
-    return parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+// Função para registrar histórico de ações
+async function registrarAcao(tipo, detalhe) {
+    await addDoc(collection(db, "historico_acoes"), {
+        usuarioNome: currentUserData.nome,
+        usuarioId: auth.currentUser.uid,
+        acao: tipo,
+        detalhe: detalhe,
+        data: new Date().toLocaleString('pt-BR'),
+        ts: serverTimestamp()
+    });
 }
 
-// Função para mostrar "1500.50" como "1.500,50" (para a tela)
+// Funções de formatação de moeda
+function formatCurrencyToNumber(amount) {
+    if(!amount) return 0;
+    return parseFloat(amount.toString().replace(/\./g, '').replace(',', '.'));
+}
+
 function formatNumberToCurrency(number) {
     return number.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
@@ -73,7 +90,6 @@ window.openEdit = (c) => {
     document.getElementById('cEmail').value = c.email || "";
     document.getElementById('cTel').value = c.telefone || "";
     document.getElementById('cEnd').value = c.endereco || "";
-    // Carrega o valor formatado para o input
     document.getElementById('cLim').value = formatNumberToCurrency(c.limite);
     
     document.getElementById('btnExcluir').style.display = "block";
@@ -91,14 +107,16 @@ document.getElementById('btnSalvar').onclick = async () => {
         email: document.getElementById('cEmail').value,
         telefone: document.getElementById('cTel').value,
         endereco: document.getElementById('cEnd').value,
-        limite: formatCurrencyToNumber(valorInput) // Salva como número no banco
+        limite: formatCurrencyToNumber(valorInput)
     };
     
     try {
         if(id) {
             await updateDoc(doc(db, "clientes", id), obj);
+            await registrarAcao("Edição", `Editou o cliente ${obj.nome}`);
         } else {
             await addDoc(collection(db, "clientes"), { ...obj, saldo: 0 });
+            await registrarAcao("Cadastro", `Cadastrou o cliente ${obj.nome}`);
         }
         modal.hide();
         resetForm();
@@ -108,8 +126,10 @@ document.getElementById('btnSalvar').onclick = async () => {
 };
 
 document.getElementById('btnExcluir').onclick = async () => {
+    const nomeExcluido = document.getElementById('cNome').value;
     if(confirm("Deseja realmente excluir?")) {
         await deleteDoc(doc(db, "clientes", document.getElementById('editId').value));
+        await registrarAcao("Exclusão", `Excluiu o cliente ${nomeExcluido}`);
         modal.hide();
         resetForm();
     }
