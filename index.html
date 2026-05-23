@@ -156,19 +156,26 @@
 
         <form id="authForm" class="text-start">
             <div id="userBox" style="display:none;" class="mb-3">
-                <label class="field-label">Nome de Usuário</label>
-                <input type="text" id="regName" class="form-control" placeholder="Ex: douglas_dev">
+                <label class="field-label">Nome de Usuário (Máx 10 letras)</label>
+                <input type="text" id="regName" class="form-control" 
+                       placeholder="EX: DOUGLAS" 
+                       maxlength="10" 
+                       style="text-transform: uppercase;">
                 <small id="userCheckMsg" class="fw-bold mt-1 d-block" style="font-size: 0.75rem;"></small>
             </div>
 
             <div class="mb-3">
-                <label class="field-label">E-mail</label>
-                <input type="email" id="email" class="form-control" placeholder="exemplo@email.com" required>
+                <label class="field-label" id="labelEmail">E-mail ou Usuário</label>
+                <input type="text" id="email" class="form-control" 
+                       placeholder="DIGITE SEU ACESSO" 
+                       required 
+                       style="text-transform: uppercase;">
             </div>
 
             <div class="mb-3">
                 <label class="field-label">Senha</label>
-                <input type="password" id="password" class="form-control" autocomplete="current-password" placeholder="******" required>
+                <input type="password" id="password" class="form-control" 
+                       autocomplete="current-password" placeholder="******" required>
             </div>
 
             <button type="submit" class="btn btn-custom w-100" id="btnMain">Acessar</button>
