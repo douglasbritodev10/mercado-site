@@ -38,7 +38,7 @@ document.getElementById('cCPF').addEventListener('input', (e) => {
 
 // Função para registrar histórico de ações
 async function registrarAcao(tipo, detalhe) {
-    await addDoc(collection(db, "historico_acoes"), {
+    await addDoc(collection(db, "historico"), {
         usuarioNome: currentUserData.nome,
         usuarioId: auth.currentUser.uid,
         acao: tipo,
