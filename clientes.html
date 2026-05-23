@@ -150,7 +150,7 @@
 </head>
 <body>
     <div class="header-nav">
-        <div class="nav-left"><a href="pagina.html" class="btn btn-sm btn-outline-light">←</a></div>
+        <div class="nav-left"><a href="pagina.html" class="btn btn-sm btn-outline-dark">←</a></div>
         <div class="nav-center">CLIENTES</div>
         <div class="nav-right"></div>
     </div>
@@ -164,22 +164,32 @@
 
     <div class="modal fade" id="modalAdd" tabindex="-1">
         <div class="modal-dialog modal-fullscreen-sm-down">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header border-secondary"><h5 id="modalTitle">Novo Cliente</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="modalTitle" class="modal-title">Novo Cliente</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body">
                     <input type="hidden" id="editId">
-                    <label class="small opacity-50">Nome Completo</label>
-                    <input type="text" id="cNome" class="form-control mb-2">
-                    <label class="small opacity-50">CPF</label>
-                    <input type="text" id="cCPF" class="form-control mb-2">
-                    <label class="small opacity-50">E-mail</label>
-                    <input type="email" id="cEmail" class="form-control mb-2">
-                    <label class="small opacity-50">Telefone</label>
-                    <input type="text" id="cTel" class="form-control mb-2">
-                    <label class="small opacity-50">Endereço</label>
-                    <input type="text" id="cEnd" class="form-control mb-2">
-                    <label class="small opacity-50">Limite de Crédito R$</label>
-                    <input type="number" id="cLim" class="form-control mb-3">
+                    
+                    <label class="field-label">Nome Completo</label>
+                    <input type="text" id="cNome" class="form-control mb-2" placeholder="Ex: João Silva">
+                    
+                    <label class="field-label">CPF</label>
+                    <input type="text" id="cCPF" class="form-control mb-2" placeholder="000.000.000-00" maxlength="14">
+                    
+                    <label class="field-label">E-mail</label>
+                    <input type="email" id="cEmail" class="form-control mb-2" placeholder="email@exemplo.com">
+                    
+                    <label class="field-label">Telefone</label>
+                    <input type="text" id="cTel" class="form-control mb-2" placeholder="(00) 00000-0000">
+                    
+                    <label class="field-label">Endereço</label>
+                    <input type="text" id="cEnd" class="form-control mb-2" placeholder="Rua, Número, Bairro">
+                    
+                    <label class="field-label">Limite de Crédito R$</label>
+                    <input type="text" id="cLim" class="form-control mb-3" placeholder="0.000,00">
+                    
                     <button class="btn btn-custom w-100" id="btnSalvar">Salvar Cadastro</button>
                     <button class="btn btn-outline-danger w-100 mt-2" id="btnExcluir" style="display:none;">Excluir Cliente</button>
                 </div>
