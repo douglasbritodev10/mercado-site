@@ -149,14 +149,16 @@
     }
 </style>
 </head>
-<body class="login-wrapper"> <div class="glass-card text-center" style="width: 90%; max-width: 400px;">
+<body class="login-wrapper"> 
+    <div class="glass-card text-center" style="width: 90%; max-width: 400px;">
         
         <h3 id="authTitle" class="mb-4" style="color: var(--primary); font-weight: bold;">Entrar</h3>
 
         <form id="authForm" class="text-start">
             <div id="userBox" style="display:none;" class="mb-3">
                 <label class="field-label">Nome de Usuário</label>
-                <input type="text" id="regName" class="form-control" placeholder="Seu nome">
+                <input type="text" id="regName" class="form-control" placeholder="Ex: douglas_dev">
+                <small id="userCheckMsg" class="fw-bold mt-1 d-block" style="font-size: 0.75rem;"></small>
             </div>
 
             <div class="mb-3">
