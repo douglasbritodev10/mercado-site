@@ -5,22 +5,128 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro - Casa & Canil</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root { --primary: #d32f2f; --bg: #121212; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height: 100vh; margin: 0; }
-        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; }
-        .header-nav { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 1000; }
-        .nav-left { display: flex; align-items: center; gap: 10px; width: 30%; }
-        .nav-center { flex-grow: 1; text-align: center; font-weight: bold; font-size: 1.1rem; }
-        .nav-right { width: 30%; text-align: right; }
-        .btn-custom { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600; }
-        .form-control { background: rgba(255,255,255,0.9) !important; border-radius: 8px; }
-        .fab { position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); text-decoration: none; }
-        .client-card { background: rgba(255,255,255,0.08); border: none; border-left: 5px solid #555; margin-bottom: 12px; transition: 0.3s; cursor: pointer; }
-        .client-card.danger { border-left-color: var(--primary); background: rgba(211, 47, 47, 0.1); }
-        .client-card.ok { border-left-color: #2e7d32; }
-        a { text-decoration: none; color: inherit; }
-    </style>
+<style>
+    /* Cores extraídas da logo */
+    :root { 
+        --primary: #d32f2f; 
+        --bg: #121212; 
+        --card-bg: rgba(255, 255, 255, 0.05);
+        --text-white: #ffffff;
+        --border: rgba(255, 255, 255, 0.1);
+    }
+
+    body { 
+        background: var(--bg); 
+        color: var(--text-white); 
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        min-height: 100vh; 
+        margin: 0;
+        /* Garante que o conteúdo não fique "colado" nas bordas do celular */
+        padding-bottom: 80px; 
+    }
+
+    /* Efeito de Vidro elegante */
+    .glass-card { 
+        background: var(--card-bg); 
+        backdrop-filter: blur(12px); 
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border); 
+        border-radius: 15px; 
+        padding: 20px; 
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    /* Navegação superior fixa e compacta para mobile */
+    .header-nav { 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        padding: 12px 15px; 
+        background: rgba(0,0,0,0.6); 
+        backdrop-filter: blur(5px);
+        position: sticky; 
+        top: 0; 
+        z-index: 1000;
+        border-bottom: 2px solid var(--primary);
+    }
+
+    /* Botão Customizado - Grande o suficiente para o polegar no celular */
+    .btn-custom { 
+        background: var(--primary); 
+        color: white; 
+        border: none; 
+        border-radius: 10px; 
+        padding: 12px 20px; 
+        font-weight: 700; 
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: transform 0.2s;
+    }
+    
+    .btn-custom:active { transform: scale(0.95); }
+
+    /* Inputs otimizados para toque */
+    .form-control { 
+        background: rgba(255,255,255,0.95) !important; 
+        border-radius: 10px; 
+        padding: 12px;
+        border: none;
+        font-size: 16px; /* Evita que o iPhone dê zoom automático no input */
+    }
+
+    /* Floating Action Button (Botão de adicionar) */
+    .fab { 
+        position: fixed; 
+        bottom: 25px; 
+        right: 25px; 
+        width: 65px; 
+        height: 65px; 
+        border-radius: 50%; 
+        background: var(--primary); 
+        color: white; 
+        border: none; 
+        font-size: 35px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        box-shadow: 0 4px 20px rgba(211, 47, 47, 0.5); 
+        text-decoration: none; 
+        z-index: 999;
+    }
+
+    /* Cartões de Clientes */
+    .client-card { 
+        background: rgba(255,255,255,0.08); 
+        border: none; 
+        border-left: 6px solid #555; 
+        margin-bottom: 15px; 
+        border-radius: 12px;
+        transition: 0.3s;
+    }
+    
+    .client-card.danger { border-left-color: var(--primary); background: rgba(211, 47, 47, 0.15); }
+    .client-card.ok { border-left-color: #2e7d32; background: rgba(46, 125, 50, 0.1); }
+
+    /* Estilo para Modais (Pop-ups) no Celular */
+    .modal-content {
+        background: #1a1a1a;
+        color: white;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+    }
+    
+    .modal-header { border-bottom: 1px solid var(--border); }
+    .modal-footer { border-top: 1px solid var(--border); }
+
+    /* Centralizar o Login */
+    .login-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
+</style>
 </head>
 <body>
     <div class="header-nav">
