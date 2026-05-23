@@ -3,7 +3,8 @@ import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, d
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 let clients = [];
-let currentUserData = null; // Para guardar o nome do admin logado
+let currentUserData = null; 
+let clientBeingEdited = null; // Guarda os dados originais para comparar na edição
 const modal = new bootstrap.Modal('#modalAdd');
 
 // --- 1. PROTEÇÃO DE ACESSO E NOME NO TOPO ---
@@ -12,7 +13,6 @@ onAuthStateChanged(auth, async (user) => {
         const userDoc = await getDoc(doc(db, "usuarios", user.uid));
         if (userDoc.exists() && userDoc.data().role === "admin") {
             currentUserData = userDoc.data();
-            // Exibe o nome do usuário ao lado do botão voltar
             document.getElementById('userNameDisplay').innerText = `Olá, ${currentUserData.nome || 'Admin'}`;
             load(); 
         } else {
@@ -24,10 +24,9 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- 2. MÁSCARA DE CPF MELHORADA ---
+// --- 2. MÁSCARA DE CPF ---
 document.getElementById('cCPF').addEventListener('input', (e) => {
-    let v = e.target.value.replace(/\D/g, ""); // Remove tudo que não é número
-    
+    let v = e.target.value.replace(/\D/g, "");
     if (v.length <= 11) {
         v = v.replace(/(\d{3})(\d)/, "$1.$2");
         v = v.replace(/(\d{3})(\d)/, "$1.$2");
@@ -36,7 +35,7 @@ document.getElementById('cCPF').addEventListener('input', (e) => {
     e.target.value = v;
 });
 
-// Função para registrar histórico de ações
+// Função de Histórico Centralizada
 async function registrarAcao(tipo, detalhe) {
     await addDoc(collection(db, "historico"), {
         usuarioNome: currentUserData.nome,
@@ -48,7 +47,6 @@ async function registrarAcao(tipo, detalhe) {
     });
 }
 
-// Funções de formatação de moeda
 function formatCurrencyToNumber(amount) {
     if(!amount) return 0;
     return parseFloat(amount.toString().replace(/\./g, '').replace(',', '.'));
@@ -70,12 +68,12 @@ function render(data) {
     box.innerHTML = "";
     data.forEach(c => {
         const div = document.createElement('div');
-        div.className = 'glass-card mb-2 p-3 d-flex justify-content-between align-items-center';
+        div.className = 'glass-card mb-2 p-3 d-flex justify-content-between align-items-center cursor-pointer';
         div.innerHTML = `
             <div>
                 <h6 class="mb-0">${c.nome}</h6>
                 <small class="opacity-50">CPF: ${c.cpf}</small><br>
-                <small class="text-danger">Limite: R$ ${formatNumberToCurrency(c.limite)}</small>
+                <small class="text-danger fw-bold">Limite: R$ ${formatNumberToCurrency(c.limite)}</small>
             </div>
             <button class="btn btn-sm btn-outline-secondary">Editar</button>`;
         div.onclick = () => openEdit(c);
@@ -84,6 +82,7 @@ function render(data) {
 }
 
 window.openEdit = (c) => {
+    clientBeingEdited = { ...c }; // Salva cópia para comparar depois
     document.getElementById('editId').value = c.id;
     document.getElementById('cNome').value = c.nome;
     document.getElementById('cCPF').value = c.cpf;
@@ -100,6 +99,7 @@ window.openEdit = (c) => {
 document.getElementById('btnSalvar').onclick = async () => {
     const id = document.getElementById('editId').value;
     const valorInput = document.getElementById('cLim').value;
+    const novoLimite = formatCurrencyToNumber(valorInput);
 
     const obj = {
         nome: document.getElementById('cNome').value,
@@ -107,16 +107,24 @@ document.getElementById('btnSalvar').onclick = async () => {
         email: document.getElementById('cEmail').value,
         telefone: document.getElementById('cTel').value,
         endereco: document.getElementById('cEnd').value,
-        limite: formatCurrencyToNumber(valorInput)
+        limite: novoLimite
     };
     
     try {
         if(id) {
+            // Lógica de Comparação para o Log de Edição
+            let mudanças = [];
+            if (clientBeingEdited.nome !== obj.nome) mudanças.push(`Nome: ${clientBeingEdited.nome} > ${obj.nome}`);
+            if (clientBeingEdited.limite !== obj.limite) mudanças.push(`Limite: ${clientBeingEdited.limite} > ${obj.limite}`);
+            if (clientBeingEdited.cpf !== obj.cpf) mudanças.push(`CPF alterado`);
+            
+            const detalheMsg = mudanças.length > 0 ? mudanças.join(" | ") : "Nenhuma alteração nos campos principais";
+
             await updateDoc(doc(db, "clientes", id), obj);
-            await registrarAcao("Edição", `Editou o cliente ${obj.nome}`);
+            await registrarAcao("Edição Cliente", `Cliente: ${obj.nome}. Modificações: ${detalheMsg}`);
         } else {
             await addDoc(collection(db, "clientes"), { ...obj, saldo: 0 });
-            await registrarAcao("Cadastro", `Cadastrou o cliente ${obj.nome}`);
+            await registrarAcao("Cadastro Cliente", `Cadastrou novo cliente: ${obj.nome} com limite R$ ${valorInput}`);
         }
         modal.hide();
         resetForm();
@@ -127,15 +135,17 @@ document.getElementById('btnSalvar').onclick = async () => {
 
 document.getElementById('btnExcluir').onclick = async () => {
     const nomeExcluido = document.getElementById('cNome').value;
-    if(confirm("Deseja realmente excluir?")) {
+    const cpfExcluido = document.getElementById('cCPF').value;
+    if(confirm(`Tem certeza que deseja excluir ${nomeExcluido}?`)) {
         await deleteDoc(doc(db, "clientes", document.getElementById('editId').value));
-        await registrarAcao("Exclusão", `Excluiu o cliente ${nomeExcluido}`);
+        await registrarAcao("Exclusão Cliente", `Excluiu permanentemente: ${nomeExcluido} (CPF: ${cpfExcluido})`);
         modal.hide();
         resetForm();
     }
 };
 
 function resetForm() {
+    clientBeingEdited = null;
     document.getElementById('editId').value = "";
     document.getElementById('cNome').value = "";
     document.getElementById('cCPF').value = "";
