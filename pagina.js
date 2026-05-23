@@ -7,7 +7,7 @@ let allClients = [];
 let currentUserData = null;
 const modalOp = new bootstrap.Modal('#modalQuickOp');
 
-// --- 1. CONTROLE DE ACESSO E NÍVEL ---
+// --- 1. CONTROLE DE ACESSO, NÍVEL E PWA ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         const userDoc = await getDoc(doc(db, "usuarios", user.uid));
@@ -17,13 +17,11 @@ onAuthStateChanged(auth, async (user) => {
                 currentUserData = userDoc.data();
                 document.getElementById('userName').innerText = `Olá, ${currentUserData.nome}`;
                 
-                // Mostra botão de usuários só para Admin
                 if (role === "admin") {
                     document.getElementById('btnAdminArea').style.display = "block";
                 }
                 loadDashboard();
             } else {
-                // Se for "cliente" ou nível baixo, vai para aguardar
                 window.location.href = "aguardar.html";
             }
         } else {
@@ -34,7 +32,21 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- 2. MÁSCARA DE MOEDA (Igual ao cadastro) ---
+// Suporte PWA (Instalação)
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Opcional: Mostrar um botão de instalação aqui se desejar
+    console.log('PWA pronto para instalar');
+});
+
+// Registrar Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(() => console.log("SW Ativo"));
+}
+
+// --- 2. MÁSCARA DE MOEDA ---
 document.getElementById('qValor').addEventListener('input', (e) => {
     let v = e.target.value.replace(/\D/g, "");
     v = (v / 100).toFixed(2) + "";
@@ -93,7 +105,7 @@ window.abrirOperacao = (id, nome) => {
     modalOp.show();
 };
 
-// --- 4. REGISTRAR COMPRA OU PAGAMENTO ---
+// --- 4. REGISTRAR COMPRA OU PAGAMENTO COM LOG DETALHADO ---
 async function registrarOp(tipo) {
     const rawVal = document.getElementById('qValor').value;
     const val = formatCurrencyToNumber(rawVal);
@@ -104,17 +116,24 @@ async function registrarOp(tipo) {
     const snap = await getDoc(ref);
     const dadosCliente = snap.data();
     
-    const novoSaldo = tipo === 'compra' ? dadosCliente.saldo + val : dadosCliente.saldo - val;
+    const saldoAnterior = dadosCliente.saldo;
+    const novoSaldo = tipo === 'compra' ? saldoAnterior + val : saldoAnterior - val;
     
     try {
         await updateDoc(ref, { saldo: novoSaldo });
         
-        // Salva no HISTÓRICO
+        // Texto descritivo para o log de histórico
+        const acaoTitulo = tipo === 'compra' ? "Anotação de Compra" : "Recebimento de Pagamento";
+        const detalheMsg = `Cliente: ${dadosCliente.nome} | Saldo: R$ ${formatNumberToCurrency(saldoAnterior)} -> R$ ${formatNumberToCurrency(novoSaldo)}`;
+
+        // Salva no HISTÓRICO (Padronizado com a tela de clientes)
         await addDoc(collection(db, "historico"), {
             clienteId: selectedId,
             clienteNome: dadosCliente.nome,
             valor: val,
             tipo: tipo, // 'compra' ou 'pagamento'
+            acao: acaoTitulo,
+            detalhe: detalheMsg,
             usuarioNome: currentUserData.nome,
             usuarioId: auth.currentUser.uid,
             data: new Date().toLocaleString('pt-BR'),
@@ -131,23 +150,18 @@ async function registrarOp(tipo) {
 window.gerarPDF = async (id) => {
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF();
-    
     const cliente = allClients.find(c => c.id === id);
-    
-    // Busca histórico do cliente no banco
     const q = query(collection(db, "historico"), where("clienteId", "==", id), orderBy("ts", "desc"));
     const querySnap = await getDocs(q);
     
-    // Cabeçalho com Logo (Simulado com texto, você pode carregar imagem)
     docPdf.setFontSize(22);
-    docPdf.setTextColor(211, 47, 47); // Vermelho Casa & Canil
+    docPdf.setTextColor(211, 47, 47);
     docPdf.text("CASA & CANIL", 105, 20, { align: "center" });
     
     docPdf.setFontSize(10);
     docPdf.setTextColor(100);
     docPdf.text("Relatório Detalhado de Conta", 105, 28, { align: "center" });
 
-    // Dados do Cliente
     docPdf.setDrawColor(200);
     docPdf.line(15, 35, 195, 35);
     docPdf.setFontSize(12);
@@ -156,11 +170,8 @@ window.gerarPDF = async (id) => {
     docPdf.text(`CPF: ${cliente.cpf}`, 15, 52);
     docPdf.text(`Limite de Crédito: R$ ${formatNumberToCurrency(cliente.limite)}`, 15, 59);
 
-    // Tabela de Histórico
     const colunas = ["Data", "Tipo", "Valor", "Operador"];
     const linhas = [];
-    let totalAcumulado = 0;
-
     querySnap.forEach(d => {
         const h = d.data();
         linhas.push([
@@ -169,8 +180,6 @@ window.gerarPDF = async (id) => {
             `R$ ${formatNumberToCurrency(h.valor)}`,
             h.usuarioNome
         ]);
-        // Soma se for compra, subtrai se for pagamento para o total
-        totalAcumulado += h.tipo === 'compra' ? h.valor : -h.valor;
     });
 
     docPdf.autoTable({
@@ -181,11 +190,9 @@ window.gerarPDF = async (id) => {
         headStyles: { fillColor: [211, 47, 47] }
     });
 
-    // Rodapé com Total
     const finalY = docPdf.lastAutoTable.finalY + 10;
     docPdf.setFontSize(14);
     docPdf.text(`SALDO TOTAL DEVEDOR: R$ ${formatNumberToCurrency(cliente.saldo)}`, 195, finalY, { align: "right" });
-
     docPdf.save(`Extrato_${cliente.nome}.pdf`);
 };
 
