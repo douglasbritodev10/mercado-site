@@ -25,7 +25,7 @@ form.onsubmit = async (e) => {
             const res = await createUserWithEmailAndPassword(auth, email, pass);
             await updateProfile(res.user, { displayName: name });
         }
-        window.location.href = "pagin.html";
+        window.location.href = "pagina.html";
     } catch (err) { alert("Erro: " + err.message); }
 };
 
