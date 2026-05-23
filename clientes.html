@@ -149,11 +149,14 @@
 </style>
 </head>
 <body>
-    <div class="header-nav">
-        <div class="nav-left"><a href="pagina.html" class="btn btn-sm btn-outline-dark">←</a></div>
-        <div class="nav-center">CLIENTES</div>
-        <div class="nav-right"></div>
+<div class="header-nav">
+    <div class="nav-left">
+        <a href="pagina.html" class="btn btn-sm btn-outline-dark">←</a>
+        <span id="userNameDisplay" class="ms-2 small fw-bold" style="color: var(--text-dark);">Carregando...</span>
     </div>
+    <div class="nav-center">CLIENTES</div>
+    <div class="nav-right"></div>
+</div>
 
     <div class="container mt-3 pb-5">
         <input type="text" id="searchClient" class="form-control mb-3" placeholder="Buscar por nome ou CPF...">
