@@ -149,26 +149,34 @@
     }
 </style>
 </head>
-<body>
-    <div class="glass-card text-center" style="width: 90%; max-width: 400px;">
-        <h3 id="authTitle" class="mb-4">Entrar</h3>
+<body class="login-wrapper"> <div class="glass-card text-center" style="width: 90%; max-width: 400px;">
+        
+        <h3 id="authTitle" class="mb-4" style="color: var(--primary); font-weight: bold;">Entrar</h3>
+
         <form id="authForm" class="text-start">
             <div id="userBox" style="display:none;" class="mb-3">
-                <label class="small">Nome de Usuário</label>
-                <input type="text" id="regName" class="form-control">
+                <label class="field-label">Nome de Usuário</label>
+                <input type="text" id="regName" class="form-control" placeholder="Seu nome">
             </div>
+
             <div class="mb-3">
-                <label class="small">E-mail</label>
-                <input type="email" id="email" class="form-control" required>
+                <label class="field-label">E-mail</label>
+                <input type="email" id="email" class="form-control" placeholder="exemplo@email.com" required>
             </div>
+
             <div class="mb-3">
-                <label class="small">Senha</label>
-                <input type="password" id="password" class="form-control" required>
+                <label class="field-label">Senha</label>
+                <input type="password" id="password" class="form-control" autocomplete="current-password" placeholder="******" required>
             </div>
+
             <button type="submit" class="btn btn-custom w-100" id="btnMain">Acessar</button>
         </form>
-        <p class="mt-3 small" style="cursor:pointer; color: #aaa;" id="toggleAuth">Novo por aqui? Cadastre-se</p>
+
+        <p class="mt-4 small" style="cursor:pointer; color: var(--text-muted);" id="toggleAuth">
+            Novo por aqui? <span style="color: var(--primary); font-weight: bold;">Cadastre-se</span>
+        </p>
     </div>
+
     <script type="module" src="auth.js"></script>
 </body>
 </html>
