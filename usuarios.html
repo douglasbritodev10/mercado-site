@@ -28,6 +28,41 @@
         .badge-role { font-size: 0.7rem; text-transform: uppercase; padding: 5px 10px; border-radius: 20px; }
         
         .form-control, .form-select { border-radius: 10px; padding: 10px; border: 1px solid var(--border); }
+
+        /* Ajuste para alinhar conteúdo e botão no card */
+        .user-card-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap; /* Faz o botão descer se não houver espaço */
+        }
+
+        .user-info {
+            flex: 1; /* Faz as informações ocuparem o espaço disponível */
+            min-width: 150px; /* Garante que o texto não fique esmagado demais */
+            overflow: hidden; /* Corta textos que passarem do limite */
+        }
+
+        .user-info span {
+            display: block;
+            word-break: break-all; /* Força a quebra do e-mail se ele for gigante */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Adiciona os "..." no final do e-mail longo */
+        }
+
+        /* Melhora o botão no celular para não ficar colado */
+        @media (max-width: 576px) {
+            .user-card-content {
+                flex-direction: row; 
+            }
+            .btn-gerenciar {
+                width: auto;
+                font-size: 0.8rem;
+                padding: 5px 10px;
+            }
+        }
         
         /* Ajuste para celular */
         @media (max-width: 576px) {
