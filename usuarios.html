@@ -25,7 +25,13 @@
         .user-card.admin { border-left-color: var(--primary); }
         .user-card.colaborador { border-left-color: #198754; }
 
-        .badge-role { font-size: 0.7rem; text-transform: uppercase; padding: 5px 10px; border-radius: 20px; }
+        .badge-role { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            padding: 2px 8px; /* Diminuí um pouco para o card ficar limpo */
+            border-radius: 20px; 
+            color: white !important; /* Força o texto ser branco já que o fundo é colorido */
+        }
         
         .form-control, .form-select { border-radius: 10px; padding: 10px; border: 1px solid var(--border); }
 
