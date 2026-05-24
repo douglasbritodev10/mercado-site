@@ -107,22 +107,64 @@ function render(data) {
         const div = document.createElement('div');
         div.className = `card client-card shadow-sm ${isDanger ? 'danger' : 'ok'}`;
         div.innerHTML = `
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div onclick="abrirOperacao('${c.id}', '${c.nome}')">
-                    <h6 class="mb-0 fw-bold">${c.nome}</h6>
-                    <small class="opacity-50">${c.cpf}</small>
-                </div>
-                <div class="text-end">
-                    <div class="mb-1">
-                         <button class="btn-pdf" onclick="event.stopPropagation(); gerarPDF('${c.id}')">PDF 📄</button>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center" onclick="alternarDetalhes('${c.id}')">
+                    <div>
+                        <h6 class="mb-0 fw-bold">${c.nome}</h6>
+                        <small class="opacity-50">${c.cpf}</small>
+                        <div class="mt-1"><span class="badge bg-light text-dark border">Clique para ver histórico</span></div>
                     </div>
-                    <h5 class="mb-0 ${isDanger ? 'text-danger' : 'text-success'} fw-bold">R$ ${formatNumberToCurrency(c.saldo)}</h5>
-                    <small class="small opacity-50">Limite de Crédito: R$ ${formatNumberToCurrency(c.limite)}</small>
+                    <div class="text-end">
+                        <div class="mb-1">
+                             <button class="btn-pdf" onclick="event.stopPropagation(); gerarPDF('${c.id}')">PDF 📄</button>
+                        </div>
+                        <h5 class="mb-0 ${isDanger ? 'text-danger' : 'text-success'} fw-bold">R$ ${formatNumberToCurrency(c.saldo)}</h5>
+                        <small class="small opacity-50">Limite: R$ ${formatNumberToCurrency(c.limite)}</small>
+                    </div>
                 </div>
+                <div id="detalhes-${c.id}" class="mt-3 pt-3 border-top" style="display: none; font-size: 0.85rem;">
+                    <div class="text-center opacity-50">Carregando histórico...</div>
+                </div>
+                <button class="btn btn-sm btn-outline-danger w-100 mt-3 fw-bold" onclick="abrirOperacao('${c.id}', '${c.nome}')">
+                    + NOVA OPERAÇÃO
+                </button>
             </div>`;
         box.appendChild(div);
     });
 }
+
+window.alternarDetalhes = async (id) => {
+    const el = document.getElementById(`detalhes-${id}`);
+    if (el.style.display === "block") {
+        el.style.display = "none";
+        return;
+    }
+    el.style.display = "block";
+    
+    // Busca os últimos 5 registros do histórico para o cliente
+    const q = query(collection(db, "historico"), where("clienteId", "==", id), orderBy("ts", "desc"));
+    const snap = await getDocs(q);
+    
+    if (snap.empty) {
+        el.innerHTML = `<div class="text-center py-2">Nenhum registro encontrado.</div>`;
+        return;
+    }
+
+    let html = `<h6 class="fw-bold small text-uppercase mb-2">Últimos Lançamentos:</h6>`;
+    snap.forEach(d => {
+        const h = d.data();
+        html += `
+            <div class="mb-2 p-2 rounded bg-light border-start border-3 ${h.tipo === 'compra' ? 'border-danger' : 'border-success'}">
+                <div class="d-flex justify-content-between">
+                    <strong>${h.tipo === 'compra' ? '🔴 COMPRA' : '🟢 PAGAMENTO'}</strong>
+                    <span>R$ ${formatNumberToCurrency(h.valor)}</span>
+                </div>
+                <div class="text-muted small">${h.data} | Por: ${h.usuarioNome}</div>
+                ${h.obs ? `<div class="mt-1 text-dark"><strong>Obs:</strong> ${h.obs}</div>` : ""}
+            </div>`;
+    });
+    el.innerHTML = html;
+};
 
 window.abrirOperacao = (id, nome) => {
     selectedId = id;
@@ -134,6 +176,7 @@ window.abrirOperacao = (id, nome) => {
 // --- 4. REGISTRAR COMPRA OU PAGAMENTO COM LOG DETALHADO ---
 async function registrarOp(tipo) {
     const rawVal = document.getElementById('qValor').value;
+    const obs = document.getElementById('qObs').value.trim();
     const val = formatCurrencyToNumber(rawVal);
     
     if(!val || !selectedId) return;
@@ -142,128 +185,160 @@ async function registrarOp(tipo) {
     const snap = await getDoc(ref);
     const dadosCliente = snap.data();
     
-    const saldoAnterior = dadosCliente.saldo;
-    const novoSaldo = tipo === 'compra' ? saldoAnterior + val : saldoAnterior - val;
+    const novoSaldo = tipo === 'compra' ? dadosCliente.saldo + val : dadosCliente.saldo - val;
     
     try {
         await updateDoc(ref, { saldo: novoSaldo });
         
-        // Texto descritivo para o log de histórico
-        const acaoTitulo = tipo === 'compra' ? "Anotação de Compra" : "Recebimento de Pagamento";
-        const detalheMsg = `Cliente: ${dadosCliente.nome} | Saldo: R$ ${formatNumberToCurrency(saldoAnterior)} -> R$ ${formatNumberToCurrency(novoSaldo)}`;
-
-        // Salva no HISTÓRICO (Padronizado com a tela de clientes)
         await addDoc(collection(db, "historico"), {
             clienteId: selectedId,
             clienteNome: dadosCliente.nome,
             valor: val,
-            tipo: tipo, // 'compra' ou 'pagamento'
-            acao: acaoTitulo,
-            detalhe: detalheMsg,
+            tipo: tipo,
+            obs: obs, // Salva a observação
             usuarioNome: currentUserData.nome,
             usuarioId: auth.currentUser.uid,
             data: new Date().toLocaleString('pt-BR'),
             ts: serverTimestamp()
         });
 
+        document.getElementById('qObs').value = ""; // Limpa obs
         modalOp.hide();
     } catch (e) {
         alert("Erro: " + e.message);
     }
 }
 
-// --- 5. GERAÇÃO DE PDF PROFISSIONAL (EXTRATO DE CONTA) ---
+// --- GERAÇÃO DE PDF PROFISSIONAL COM HISTÓRICO DETALHADO ---
 window.gerarPDF = async (id) => {
+    const cliente = allClients.find(c => c.id === id);
+
+    // 1. VALIDAÇÃO: Se o saldo for 0 ou negativo, não gera o PDF
+    if (!cliente || cliente.saldo <= 0) {
+        alert("Este cliente não possui pendências financeiras (Saldo Zerado).");
+        return;
+    }
+
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF();
-    const cliente = allClients.find(c => c.id === id);
     
-    // Ícone de carrinho reserva (Base64) caso a logo falhe
+    // 2. BUSCA O HISTÓRICO COMPLETO NO FIRESTORE
+    // Buscamos todos os registros desse cliente para listar no PDF
+    const q = query(
+        collection(db, "historico"), 
+        where("clienteId", "==", id), 
+        orderBy("ts", "desc")
+    );
+    const querySnap = await getDocs(q);
+
+    // --- CONFIGURAÇÕES DE ESTILO ---
+    const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
+    const corTexto = [45, 45, 45];
+    const corSuave = [100, 100, 100];
     const carrinhoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB80lEQVR4nO2YMW7CQBBE30onpUegSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidF/AKG0X6WvGvSogAAAABJRU5ErkJggg==";
 
     let logoBase64 = "";
     try {
-        // Tenta carregar o ícone do seu repositório
         logoBase64 = await getImageDataURL('icon-192.png');
     } catch (e) {
-        console.warn("Usando ícone reserva: carrinho.");
         logoBase64 = carrinhoBase64;
     }
 
-    const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
-    const corTexto = [45, 45, 45];
-    const corSuave = [100, 100, 100];
-
-    // --- CABEÇALHO ---
+    // --- 3. CABEÇALHO ---
     if (logoBase64) {
-        docPdf.addImage(logoBase64, 'PNG', 15, 12, 25, 25);
+        docPdf.addImage(logoBase64, 'PNG', 15, 12, 22, 22);
     }
     
     docPdf.setFontSize(18);
     docPdf.setTextColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
     docPdf.setFont("helvetica", "bold");
-    docPdf.text("CASA & CANIL", 50, 22);
+    docPdf.text("CASA & CANIL", 45, 20);
     
     docPdf.setFontSize(9);
     docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
     docPdf.setFont("helvetica", "normal");
-    docPdf.text("Ração • Medicamentos • Jardinagem • Utilidades", 50, 27);
-    docPdf.text("Contato: (27) 9.9899-2768", 50, 32);
+    docPdf.text("Ração • Medicamentos • Jardinagem • Utilidades", 45, 25);
+    docPdf.text("Contato: (27) 9.9899-2768", 45, 30);
 
     docPdf.setDrawColor(220, 220, 220);
-    docPdf.line(15, 45, 195, 45);
+    docPdf.line(15, 40, 195, 40);
 
-    docPdf.setFontSize(14);
+    // --- 4. DADOS DO CLIENTE ---
+    docPdf.setFontSize(12);
     docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
     docPdf.setFont("helvetica", "bold");
-    docPdf.text("EXTRATO DE CONTA DO CLIENTE", 105, 55, { align: "center" });
+    docPdf.text("EXTRATO DETALHADO DE CONTA", 105, 50, { align: "center" });
 
-    let yPos = 70;
-    const drawField = (label, value, y) => {
-        docPdf.setFontSize(10);
-        docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
-        docPdf.setFont("helvetica", "bold");
-        docPdf.text(label, 20, y);
-        docPdf.setFontSize(11);
-        docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
-        docPdf.setFont("helvetica", "normal");
-        docPdf.text(String(value || "Não informado"), 70, y);
-        docPdf.setDrawColor(240, 240, 240);
-        docPdf.line(20, y + 2, 190, y + 2);
-    };
+    const yStartInfo = 60;
+    docPdf.setFontSize(10);
+    docPdf.text(`CLIENTE: ${cliente.nome.toUpperCase()}`, 15, yStartInfo);
+    docPdf.text(`CPF: ${cliente.cpf}`, 15, yStartInfo + 6);
+    docPdf.text(`ENDEREÇO: ${cliente.endereco || "Não informado"}`, 15, yStartInfo + 12);
+    docPdf.text(`CONTATO: ${cliente.telefone || "Não informado"}`, 15, yStartInfo + 18);
 
-    drawField("NOME DO CLIENTE:", cliente.nome.toUpperCase(), yPos);
-    drawField("CPF:", cliente.cpf, yPos + 10);
-    drawField("CONTATO / TEL:", cliente.telefone || "Disponível no cadastro", yPos + 20);
-    drawField("ENDEREÇO:", cliente.endereco || "Não informado", yPos + 30);
+    // --- 5. TABELA DE HISTÓRICO (LANÇAMENTOS EM ABERTO) ---
+    const colunas = ["Data", "Tipo", "Valor", "Obs / Detalhes", "Atendente"];
+    const linhas = [];
 
-    yPos += 55;
-    docPdf.setFillColor(248, 249, 250);
-    docPdf.rect(15, yPos - 10, 180, 45, 'F');
+    querySnap.forEach(doc => {
+        const h = doc.data();
+        linhas.push([
+            h.data.split(',')[0], // Apenas a data
+            h.tipo === 'compra' ? "ANOTADO" : "PAGOU",
+            `R$ ${formatNumberToCurrency(h.valor)}`,
+            h.obs || "-",
+            h.usuarioNome
+        ]);
+    });
+
+    docPdf.autoTable({
+        startY: 85,
+        head: [colunas],
+        body: linhas,
+        theme: 'striped',
+        headStyles: { fillColor: corPrimaria, fontSize: 9 },
+        styles: { fontSize: 8, cellPadding: 2 },
+        columnStyles: {
+            2: { fontStyle: 'bold' }, // Valor em negrito
+            3: { cellWidth: 50 }      // Coluna de Obs mais larga
+        }
+    });
+
+    // --- 6. RESUMO FINANCEIRO FINAL ---
+    let finalY = docPdf.lastAutoTable.finalY + 10;
+
+    // Verificar se precisa de nova página para o fechamento
+    if (finalY > 250) {
+        docPdf.addPage();
+        finalY = 20;
+    }
+
+    docPdf.setFillColor(245, 245, 245);
+    docPdf.rect(15, finalY, 180, 25, 'F');
     docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
-    docPdf.line(15, yPos - 10, 15, yPos + 35);
+    docPdf.setLineWidth(1);
+    docPdf.line(15, finalY, 15, finalY + 25);
 
-    docPdf.setFontSize(11);
+    docPdf.setFontSize(10);
     docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
-    docPdf.setFont("helvetica", "bold");
-    docPdf.text("LIMITE DE CRÉDITO:", 25, yPos);
     docPdf.setFont("helvetica", "normal");
-    docPdf.text(`R$ ${formatNumberToCurrency(cliente.limite)}`, 185, yPos, { align: "right" });
+    docPdf.text("Limite de Crédito Disponível:", 20, finalY + 10);
+    docPdf.text(`R$ ${formatNumberToCurrency(cliente.limite)}`, 190, finalY + 10, { align: "right" });
 
-    yPos += 15;
     docPdf.setFontSize(14);
     docPdf.setTextColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
     docPdf.setFont("helvetica", "bold");
-    docPdf.text("VALOR TOTAL ANOTADO:", 25, yPos + 5);
-    docPdf.text(`R$ ${formatNumberToCurrency(cliente.saldo)}`, 185, yPos + 5, { align: "right" });
+    docPdf.text("SALDO DEVEDOR ATUAL:", 20, finalY + 20);
+    docPdf.text(`R$ ${formatNumberToCurrency(cliente.saldo)}`, 190, finalY + 20, { align: "right" });
 
+    // --- 7. RODAPÉ ---
     const dataEmissao = new Date().toLocaleString('pt-BR');
     docPdf.setFontSize(8);
     docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
     docPdf.setFont("helvetica", "italic");
-    docPdf.text(`Documento gerado em: ${dataEmissao}`, 105, 280, { align: "center" });
-    docPdf.text("Este documento serve como conferência de saldo devedor.", 105, 285, { align: "center" });
+    docPdf.text(`Documento gerado em: ${dataEmissao}`, 105, 285, { align: "center" });
 
+    // Salvar
     docPdf.save(`Extrato_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
 };
 
