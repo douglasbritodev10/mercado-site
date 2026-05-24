@@ -49,7 +49,6 @@ onAuthStateChanged(auth, async (user) => {
 async function verificarVencimentosHoje() {
     const hoje = new Date().toISOString().split('T')[0];
     
-    // Trava para não avisar mais de uma vez no mesmo dia no mesmo aparelho
     const jaAvisadoHoje = localStorage.getItem('aviso_vencimento_' + hoje);
     if (jaAvisadoHoje) return;
 
@@ -64,19 +63,28 @@ async function verificarVencimentosHoje() {
         
         if (!snap.empty) {
             const totalVencidos = snap.size;
-            
-            // Dispara a notificação do sistema
-            if (Notification.permission === "granted") {
-                new Notification("Casa & Canil: Alerta de Vencimento", {
-                    body: `Bom dia! Existem ${totalVencidos} anotações vencendo hoje. Confira no painel.`,
-                    icon: 'icon-192.png'
-                });
-            } else {
-                // Se a notificação for negada, exibe um alerta simples na tela
+            const titulo = "Casa & Canil: Alerta de Vencimento";
+            const opcoes = {
+                body: `Bom dia! Existem ${totalVencidos} anotações vencendo hoje. Confira no painel.`,
+                icon: 'icon-192.png',
+                badge: 'icon-192.png', // Ícone pequeno que aparece na barra de status do Android
+                vibrate: [200, 100, 200], // Faz o celular vibrar
+                tag: 'vencimento-hoje' // Evita notificações duplicadas
+            };
+
+            // --- AJUSTE PARA CELULAR (SERVICE WORKER) ---
+            if ('serviceWorker' in navigator && Notification.permission === "granted") {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification(titulo, opcoes);
+            } 
+            // Fallback para computador caso o SW não esteja pronto
+            else if (Notification.permission === "granted") {
+                new Notification(titulo, opcoes);
+            } 
+            else {
                 alert(`📢 ATENÇÃO ADMIN: Existem ${totalVencidos} contas vencendo hoje!`);
             }
 
-            // Marca como avisado
             localStorage.setItem('aviso_vencimento_' + hoje, 'true');
         }
     } catch (error) {
