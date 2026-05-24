@@ -1,12 +1,6 @@
-const CACHE_NAME = 'v2_casacanil';
-
-// Apenas arquivos que REALMENTE existem no seu GitHub
+const CACHE_NAME = 'v3_casacanil';
 const assets = [
-  './',
-  './index.html',
   './pagina.html',
-  './clientes.html',
-  './historico.html',
   './manifest.json',
   './icon-192.jpeg',
   './icon-512.jpeg'
@@ -15,7 +9,6 @@ const assets = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      console.log('Instalando cache...');
       return cache.addAll(assets);
     })
   );
