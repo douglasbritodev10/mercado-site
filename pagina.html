@@ -72,18 +72,23 @@
                 <h5 id="qNome" class="fw-bold text-danger">Anotar</h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center">
-                <label class="field-label d-block text-start small opacity-50">Valor da Operação (R$)</label>
-                <input type="text" id="qValor" class="form-control mb-3 fs-2 text-center fw-bold text-danger" placeholder="0,00">
-                
-                <label class="field-label d-block text-start small opacity-50">Observação (Opcional)</label>
-                <textarea id="qObs" class="form-control mb-3" rows="2" placeholder="Ex: Ração 20kg, Medicamento..."></textarea>
+<div class="modal-body text-center">
+    <label class="field-label d-block text-start small opacity-50">Valor da Operação (R$)</label>
+    <input type="text" id="qValor" class="form-control mb-3 fs-2 text-center fw-bold text-danger" placeholder="0,00">
+    
+    <div id="vencimentoArea">
+        <label class="field-label d-block text-start small opacity-50">Data de Vencimento (A partir de amanhã)</label>
+        <input type="date" id="qVencimento" class="form-control mb-3">
+    </div>
 
-                <div class="d-flex gap-2">
-                    <button class="btn btn-danger w-100 py-3 fw-bold" id="qCompra">ANOTAR 🔴</button>
-                    <button class="btn btn-success w-100 py-3 fw-bold" id="qPaga">PAGAR 🟢</button>
-                </div>
-            </div>
+    <label class="field-label d-block text-start small opacity-50">Observação (Opcional)</label>
+    <textarea id="qObs" class="form-control mb-3" rows="2" placeholder="Ex: Ração 20kg..."></textarea>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-danger w-100 py-3 fw-bold" id="qCompra">ANOTAR 🔴</button>
+        <button class="btn btn-success w-100 py-3 fw-bold" id="qPaga">PAGAR 🟢</button>
+    </div>
+</div>
         </div>
     </div>
 </div>
