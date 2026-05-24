@@ -178,27 +178,25 @@ window.gerarPDF = async (id) => {
     const docPdf = new jsPDF();
     const cliente = allClients.find(c => c.id === id);
     
-    // Tenta carregar o ícone antes de começar o PDF
+    // Ícone de carrinho reserva (Base64) caso a logo falhe
+    const carrinhoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB80lEQVR4nO2YMW7CQBBE30onpUegSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidF/AKG0X6WvGvSogAAAABJRU5ErkJggg==";
+
     let logoBase64 = "";
     try {
+        // Tenta carregar o ícone do seu repositório
         logoBase64 = await getImageDataURL('icon-192.png');
     } catch (e) {
-        console.error("Erro ao carregar o ícone:", e);
+        console.warn("Usando ícone reserva: carrinho.");
+        logoBase64 = carrinhoBase64;
     }
 
-    const corPrimaria = [211, 47, 47];
+    const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
     const corTexto = [45, 45, 45];
     const corSuave = [100, 100, 100];
 
-    // --- CABEÇALHO COM LOGO ---
+    // --- CABEÇALHO ---
     if (logoBase64) {
-        // img, formato, x, y, largura, altura
         docPdf.addImage(logoBase64, 'PNG', 15, 12, 25, 25);
-    } else {
-        // Caso a imagem falhe, mantém o círculo estilizado como reserva
-        docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
-        docPdf.setLineWidth(0.5);
-        docPdf.circle(30, 25, 15, 'S');
     }
     
     docPdf.setFontSize(18);
@@ -212,32 +210,24 @@ window.gerarPDF = async (id) => {
     docPdf.text("Ração • Medicamentos • Jardinagem • Utilidades", 50, 27);
     docPdf.text("Contato: (27) 9.9899-2768", 50, 32);
 
-    // O RESTANTE DO CÓDIGO (Linha divisória,
     docPdf.setDrawColor(220, 220, 220);
     docPdf.line(15, 45, 195, 45);
 
-    // 3. Título do Documento
     docPdf.setFontSize(14);
     docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
     docPdf.setFont("helvetica", "bold");
     docPdf.text("EXTRATO DE CONTA DO CLIENTE", 105, 55, { align: "center" });
 
-    // 4. Bloco de Dados do Cliente (Organizado)
     let yPos = 70;
-    
-    // Função auxiliar para desenhar campos
     const drawField = (label, value, y) => {
         docPdf.setFontSize(10);
         docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
         docPdf.setFont("helvetica", "bold");
         docPdf.text(label, 20, y);
-        
         docPdf.setFontSize(11);
         docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
         docPdf.setFont("helvetica", "normal");
-        docPdf.text(value || "Não informado", 70, y);
-        
-        // Linha fininha embaixo de cada campo para organizar
+        docPdf.text(String(value || "Não informado"), 70, y);
         docPdf.setDrawColor(240, 240, 240);
         docPdf.line(20, y + 2, 190, y + 2);
     };
@@ -247,14 +237,11 @@ window.gerarPDF = async (id) => {
     drawField("CONTATO / TEL:", cliente.telefone || "Disponível no cadastro", yPos + 20);
     drawField("ENDEREÇO:", cliente.endereco || "Não informado", yPos + 30);
 
-    // 5. Bloco Financeiro (Destaque)
     yPos += 55;
-    
-    // Fundo cinza claro para a área financeira
     docPdf.setFillColor(248, 249, 250);
     docPdf.rect(15, yPos - 10, 180, 45, 'F');
     docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
-    docPdf.line(15, yPos - 10, 15, yPos + 35); // Barra lateral vermelha
+    docPdf.line(15, yPos - 10, 15, yPos + 35);
 
     docPdf.setFontSize(11);
     docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
@@ -270,7 +257,6 @@ window.gerarPDF = async (id) => {
     docPdf.text("VALOR TOTAL ANOTADO:", 25, yPos + 5);
     docPdf.text(`R$ ${formatNumberToCurrency(cliente.saldo)}`, 185, yPos + 5, { align: "right" });
 
-    // 6. Rodapé e Data de Emissão
     const dataEmissao = new Date().toLocaleString('pt-BR');
     docPdf.setFontSize(8);
     docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
@@ -278,8 +264,25 @@ window.gerarPDF = async (id) => {
     docPdf.text(`Documento gerado em: ${dataEmissao}`, 105, 280, { align: "center" });
     docPdf.text("Este documento serve como conferência de saldo devedor.", 105, 285, { align: "center" });
 
-    // Salvar o arquivo
     docPdf.save(`Extrato_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
+};
+
+// Função auxiliar que estava faltando no seu código
+const getImageDataURL = (url) => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
 };
 
 document.getElementById('qCompra').onclick = () => registrarOp('compra');
