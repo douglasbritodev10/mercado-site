@@ -117,7 +117,7 @@ function render(data) {
                          <button class="btn-pdf" onclick="event.stopPropagation(); gerarPDF('${c.id}')">PDF 📄</button>
                     </div>
                     <h5 class="mb-0 ${isDanger ? 'text-danger' : 'text-success'} fw-bold">R$ ${formatNumberToCurrency(c.saldo)}</h5>
-                    <small class="small opacity-50">Limite de Credito: R$ ${formatNumberToCurrency(c.limite)}</small>
+                    <small class="small opacity-50">Limite de Crédito: R$ ${formatNumberToCurrency(c.limite)}</small>
                 </div>
             </div>`;
         box.appendChild(div);
@@ -178,18 +178,28 @@ window.gerarPDF = async (id) => {
     const docPdf = new jsPDF();
     const cliente = allClients.find(c => c.id === id);
     
-    // 1. Configurações de Estilo e Cores
-    const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
+    // Tenta carregar o ícone antes de começar o PDF
+    let logoBase64 = "";
+    try {
+        logoBase64 = await getImageDataURL('icon-192.png');
+    } catch (e) {
+        console.error("Erro ao carregar o ícone:", e);
+    }
+
+    const corPrimaria = [211, 47, 47];
     const corTexto = [45, 45, 45];
     const corSuave = [100, 100, 100];
 
-    // 2. Adicionar Logotipo (Círculo e Ícone)
-    // Nota: Como o ícone é um arquivo local, usamos um placeholder ou 
-    // você pode carregar a imagem em base64 se preferir. 
-    // Aqui vamos focar no layout profissional usando formas e texto.
-    docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
-    docPdf.setLineWidth(0.5);
-    docPdf.circle(30, 25, 15, 'S'); // Círculo do logo
+    // --- CABEÇALHO COM LOGO ---
+    if (logoBase64) {
+        // img, formato, x, y, largura, altura
+        docPdf.addImage(logoBase64, 'PNG', 15, 12, 25, 25);
+    } else {
+        // Caso a imagem falhe, mantém o círculo estilizado como reserva
+        docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
+        docPdf.setLineWidth(0.5);
+        docPdf.circle(30, 25, 15, 'S');
+    }
     
     docPdf.setFontSize(18);
     docPdf.setTextColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
@@ -202,7 +212,7 @@ window.gerarPDF = async (id) => {
     docPdf.text("Ração • Medicamentos • Jardinagem • Utilidades", 50, 27);
     docPdf.text("Contato: (27) 9.9899-2768", 50, 32);
 
-    // Linha divisória superior
+    // O RESTANTE DO CÓDIGO (Linha divisória,
     docPdf.setDrawColor(220, 220, 220);
     docPdf.line(15, 45, 195, 45);
 
