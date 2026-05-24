@@ -2,8 +2,8 @@ const CACHE_NAME = 'v3_casacanil';
 const assets = [
   './pagina.html',
   './manifest.json',
-  './icon-192.jpeg',
-  './icon-512.jpeg'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', e => {
