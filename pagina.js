@@ -117,7 +117,7 @@ function render(data) {
                          <button class="btn-pdf" onclick="event.stopPropagation(); gerarPDF('${c.id}')">PDF 📄</button>
                     </div>
                     <h5 class="mb-0 ${isDanger ? 'text-danger' : 'text-success'} fw-bold">R$ ${formatNumberToCurrency(c.saldo)}</h5>
-                    <small class="small opacity-50">Lim: R$ ${formatNumberToCurrency(c.limite)}</small>
+                    <small class="small opacity-50">Limite de Credito: R$ ${formatNumberToCurrency(c.limite)}</small>
                 </div>
             </div>`;
         box.appendChild(div);
@@ -172,54 +172,104 @@ async function registrarOp(tipo) {
     }
 }
 
-// --- 5. GERAÇÃO DE PDF DETALHADO ---
+// --- 5. GERAÇÃO DE PDF PROFISSIONAL (EXTRATO DE CONTA) ---
 window.gerarPDF = async (id) => {
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF();
     const cliente = allClients.find(c => c.id === id);
-    const q = query(collection(db, "historico"), where("clienteId", "==", id), orderBy("ts", "desc"));
-    const querySnap = await getDocs(q);
     
-    docPdf.setFontSize(22);
-    docPdf.setTextColor(211, 47, 47);
-    docPdf.text("CASA & CANIL", 105, 20, { align: "center" });
+    // 1. Configurações de Estilo e Cores
+    const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
+    const corTexto = [45, 45, 45];
+    const corSuave = [100, 100, 100];
+
+    // 2. Adicionar Logotipo (Círculo e Ícone)
+    // Nota: Como o ícone é um arquivo local, usamos um placeholder ou 
+    // você pode carregar a imagem em base64 se preferir. 
+    // Aqui vamos focar no layout profissional usando formas e texto.
+    docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
+    docPdf.setLineWidth(0.5);
+    docPdf.circle(30, 25, 15, 'S'); // Círculo do logo
     
-    docPdf.setFontSize(10);
-    docPdf.setTextColor(100);
-    docPdf.text("Relatório Detalhado de Conta", 105, 28, { align: "center" });
+    docPdf.setFontSize(18);
+    docPdf.setTextColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
+    docPdf.setFont("helvetica", "bold");
+    docPdf.text("CASA & CANIL", 50, 22);
+    
+    docPdf.setFontSize(9);
+    docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
+    docPdf.setFont("helvetica", "normal");
+    docPdf.text("Ração • Medicamentos • Jardinagem • Utilidades", 50, 27);
+    docPdf.text("Contato: (27) 9.9899-2768", 50, 32);
 
-    docPdf.setDrawColor(200);
-    docPdf.line(15, 35, 195, 35);
-    docPdf.setFontSize(12);
-    docPdf.setTextColor(0);
-    docPdf.text(`Cliente: ${cliente.nome}`, 15, 45);
-    docPdf.text(`CPF: ${cliente.cpf}`, 15, 52);
-    docPdf.text(`Limite de Crédito: R$ ${formatNumberToCurrency(cliente.limite)}`, 15, 59);
+    // Linha divisória superior
+    docPdf.setDrawColor(220, 220, 220);
+    docPdf.line(15, 45, 195, 45);
 
-    const colunas = ["Data", "Tipo", "Valor", "Operador"];
-    const linhas = [];
-    querySnap.forEach(d => {
-        const h = d.data();
-        linhas.push([
-            h.data,
-            h.tipo === 'compra' ? "COMPRA" : "PAGAMENTO",
-            `R$ ${formatNumberToCurrency(h.valor)}`,
-            h.usuarioNome
-        ]);
-    });
-
-    docPdf.autoTable({
-        startY: 65,
-        head: [colunas],
-        body: linhas,
-        theme: 'striped',
-        headStyles: { fillColor: [211, 47, 47] }
-    });
-
-    const finalY = docPdf.lastAutoTable.finalY + 10;
+    // 3. Título do Documento
     docPdf.setFontSize(14);
-    docPdf.text(`SALDO TOTAL DEVEDOR: R$ ${formatNumberToCurrency(cliente.saldo)}`, 195, finalY, { align: "right" });
-    docPdf.save(`Extrato_${cliente.nome}.pdf`);
+    docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
+    docPdf.setFont("helvetica", "bold");
+    docPdf.text("EXTRATO DE CONTA DO CLIENTE", 105, 55, { align: "center" });
+
+    // 4. Bloco de Dados do Cliente (Organizado)
+    let yPos = 70;
+    
+    // Função auxiliar para desenhar campos
+    const drawField = (label, value, y) => {
+        docPdf.setFontSize(10);
+        docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
+        docPdf.setFont("helvetica", "bold");
+        docPdf.text(label, 20, y);
+        
+        docPdf.setFontSize(11);
+        docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
+        docPdf.setFont("helvetica", "normal");
+        docPdf.text(value || "Não informado", 70, y);
+        
+        // Linha fininha embaixo de cada campo para organizar
+        docPdf.setDrawColor(240, 240, 240);
+        docPdf.line(20, y + 2, 190, y + 2);
+    };
+
+    drawField("NOME DO CLIENTE:", cliente.nome.toUpperCase(), yPos);
+    drawField("CPF:", cliente.cpf, yPos + 10);
+    drawField("CONTATO / TEL:", cliente.telefone || "Disponível no cadastro", yPos + 20);
+    drawField("ENDEREÇO:", cliente.endereco || "Não informado", yPos + 30);
+
+    // 5. Bloco Financeiro (Destaque)
+    yPos += 55;
+    
+    // Fundo cinza claro para a área financeira
+    docPdf.setFillColor(248, 249, 250);
+    docPdf.rect(15, yPos - 10, 180, 45, 'F');
+    docPdf.setDrawColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
+    docPdf.line(15, yPos - 10, 15, yPos + 35); // Barra lateral vermelha
+
+    docPdf.setFontSize(11);
+    docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
+    docPdf.setFont("helvetica", "bold");
+    docPdf.text("LIMITE DE CRÉDITO:", 25, yPos);
+    docPdf.setFont("helvetica", "normal");
+    docPdf.text(`R$ ${formatNumberToCurrency(cliente.limite)}`, 185, yPos, { align: "right" });
+
+    yPos += 15;
+    docPdf.setFontSize(14);
+    docPdf.setTextColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
+    docPdf.setFont("helvetica", "bold");
+    docPdf.text("VALOR TOTAL ANOTADO:", 25, yPos + 5);
+    docPdf.text(`R$ ${formatNumberToCurrency(cliente.saldo)}`, 185, yPos + 5, { align: "right" });
+
+    // 6. Rodapé e Data de Emissão
+    const dataEmissao = new Date().toLocaleString('pt-BR');
+    docPdf.setFontSize(8);
+    docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
+    docPdf.setFont("helvetica", "italic");
+    docPdf.text(`Documento gerado em: ${dataEmissao}`, 105, 280, { align: "center" });
+    docPdf.text("Este documento serve como conferência de saldo devedor.", 105, 285, { align: "center" });
+
+    // Salvar o arquivo
+    docPdf.save(`Extrato_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
 };
 
 document.getElementById('qCompra').onclick = () => registrarOp('compra');
