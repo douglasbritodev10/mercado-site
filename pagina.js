@@ -47,8 +47,8 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function verificarVencimentosHoje() {
-    // Para testar, você pode comentar a linha do localStorage abaixo
     const hoje = new Date().toISOString().split('T')[0];
+    
     const jaAvisadoHoje = localStorage.getItem('aviso_vencimento_' + hoje);
     if (jaAvisadoHoje) {
         console.log("Notificação já enviada hoje via localStorage.");
@@ -65,17 +65,40 @@ async function verificarVencimentosHoje() {
         const snap = await getDocs(q);
         
         if (!snap.empty) {
+            // --- NOVA LÓGICA: MAPEANDO CLIENTES E VALORES ---
+            const resumoClientes = {}; // Objeto para somar valores por cliente
+
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const nome = data.clienteNome || "Cliente s/ nome";
+                const valor = data.valor || 0;
+
+                if (resumoClientes[nome]) {
+                    resumoClientes[nome] += valor;
+                } else {
+                    resumoClientes[nome] = valor;
+                }
+            });
+
+            // Monta a string do corpo da notificação
+            let listaNomes = Object.entries(resumoClientes)
+                .map(([nome, valor]) => `${nome} (R$ ${formatNumberToCurrency(valor)})`)
+                .join(', ');
+
             const totalVencidos = snap.size;
-            const titulo = "Casa & Canil: Vencimentos";
+            const titulo = "Casa & Canil: Vencimentos de Hoje";
+            const corpoTexto = `Total: ${totalVencidos} anotação(ões). Clientes: ${listaNomes}`;
+
             const opcoes = {
-                body: `Existem ${totalVencidos} contas vencendo hoje!`,
+                body: corpoTexto,
                 icon: 'icon-192.png',
                 badge: 'icon-192.png',
                 vibrate: [200, 100, 200],
-                tag: 'vencimento-hoje'
+                tag: 'vencimento-hoje',
+                renotify: true // Permite notificar novamente se o arquivo mudar
             };
 
-            // Tenta disparar via Service Worker (Melhor para Android)
+            // Envio da Notificação
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.showNotification(titulo, opcoes);
@@ -83,7 +106,7 @@ async function verificarVencimentosHoje() {
             } else if (Notification.permission === "granted") {
                 new Notification(titulo, opcoes);
             } else {
-                alert(`📢 ATENÇÃO: ${totalVencidos} contas vencem hoje!`);
+                alert(`📢 VENCIMENTOS HOJE:\n${listaNomes}`);
             }
 
             localStorage.setItem('aviso_vencimento_' + hoje, 'true');
