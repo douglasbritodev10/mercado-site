@@ -19,7 +19,21 @@ onAuthStateChanged(auth, async (user) => {
                 
                 if (role === "admin") {
                     document.getElementById('btnAdminArea').style.display = "block";
+                    
+                    // --- AJUSTE AQUI: DISPARAR NOTIFICAÇÃO ---
+                    // Se a permissão for padrão, pergunta primeiro. Se já tiver, executa direto.
+                    if (Notification.permission === "default") {
+                        Notification.requestPermission().then(perm => {
+                            if (perm === "granted") verificarVencimentosHoje();
+                        });
+                    } else if (Notification.permission === "granted") {
+                        verificarVencimentosHoje();
+                    } else {
+                        // Se estiver negada, a função rodará e mostrará o alert() convencional
+                        verificarVencimentosHoje();
+                    }
                 }
+                
                 loadDashboard();
             } else {
                 window.location.href = "aguardar.html";
@@ -31,6 +45,44 @@ onAuthStateChanged(auth, async (user) => {
         window.location.href = "index.html";
     }
 });
+
+async function verificarVencimentosHoje() {
+    const hoje = new Date().toISOString().split('T')[0];
+    
+    // Trava para não avisar mais de uma vez no mesmo dia no mesmo aparelho
+    const jaAvisadoHoje = localStorage.getItem('aviso_vencimento_' + hoje);
+    if (jaAvisadoHoje) return;
+
+    try {
+        const q = query(
+            collection(db, "historico"), 
+            where("vencimento", "==", hoje),
+            where("tipo", "==", "compra")
+        );
+
+        const snap = await getDocs(q);
+        
+        if (!snap.empty) {
+            const totalVencidos = snap.size;
+            
+            // Dispara a notificação do sistema
+            if (Notification.permission === "granted") {
+                new Notification("Casa & Canil: Alerta de Vencimento", {
+                    body: `Bom dia! Existem ${totalVencidos} anotações vencendo hoje. Confira no painel.`,
+                    icon: 'icon-192.png'
+                });
+            } else {
+                // Se a notificação for negada, exibe um alerta simples na tela
+                alert(`📢 ATENÇÃO ADMIN: Existem ${totalVencidos} contas vencendo hoje!`);
+            }
+
+            // Marca como avisado
+            localStorage.setItem('aviso_vencimento_' + hoje, 'true');
+        }
+    } catch (error) {
+        console.error("Erro ao checar vencimentos:", error);
+    }
+}
 
 // --- LOGICA DE INSTALAÇÃO PWA ---
 let deferredPrompt;
