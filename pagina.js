@@ -141,7 +141,7 @@ window.alternarDetalhes = async (id) => {
     }
     el.style.display = "block";
     
-    // Busca os últimos 5 registros do histórico para o cliente
+    // Busca os últimos registros do histórico para o cliente
     const q = query(collection(db, "historico"), where("clienteId", "==", id), orderBy("ts", "desc"));
     const snap = await getDocs(q);
     
@@ -151,18 +151,49 @@ window.alternarDetalhes = async (id) => {
     }
 
     let html = `<h6 class="fw-bold small text-uppercase mb-2">Últimos Lançamentos:</h6>`;
+    
+    // Pegamos a data de hoje sem horas para comparar apenas o dia
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
     snap.forEach(d => {
         const h = d.data();
+        let avisoVencimento = "";
+        let classeCorVencimento = "text-muted"; // Cor padrão
+
+        // REGRA DE CORES PARA VENCIMENTO
+        if (h.tipo === 'compra' && h.vencimento) {
+            // h.vencimento vem no formato YYYY-MM-DD
+            const dataVenc = new Date(h.vencimento + "T00:00:00");
+
+            if (dataVenc < hoje) {
+                // VENCIDO: Vermelho
+                classeCorVencimento = "text-danger fw-bold";
+                avisoVencimento = `⚠️ VENCIDO EM: ${h.vencimento.split('-').reverse().join('/')}`;
+            } else {
+                // EM DIA: Verde
+                classeCorVencimento = "text-success fw-bold";
+                avisoVencimento = `📅 VENCE EM: ${h.vencimento.split('-').reverse().join('/')}`;
+            }
+        }
+
         html += `
             <div class="mb-2 p-2 rounded bg-light border-start border-3 ${h.tipo === 'compra' ? 'border-danger' : 'border-success'}">
                 <div class="d-flex justify-content-between">
                     <strong>${h.tipo === 'compra' ? '🔴 COMPRA' : '🟢 PAGAMENTO'}</strong>
-                    <span>R$ ${formatNumberToCurrency(h.valor)}</span>
+                    <span class="fw-bold">R$ ${formatNumberToCurrency(h.valor)}</span>
                 </div>
-                <div class="text-muted small">${h.data} | Por: ${h.usuarioNome}</div>
-                ${h.obs ? `<div class="mt-1 text-dark"><strong>Obs:</strong> ${h.obs}</div>` : ""}
+                
+                ${h.tipo === 'compra' && h.vencimento ? `<div class="small ${classeCorVencimento} mb-1">${avisoVencimento}</div>` : ""}
+                
+                <div class="text-muted small" style="font-size: 0.75rem;">
+                    Lançado: ${h.data} | Por: ${h.usuarioNome}
+                </div>
+                
+                ${h.obs ? `<div class="mt-1 text-dark" style="font-size: 0.8rem;"><strong>Obs:</strong> ${h.obs}</div>` : ""}
             </div>`;
     });
+    
     el.innerHTML = html;
 };
 
@@ -170,6 +201,17 @@ window.abrirOperacao = (id, nome) => {
     selectedId = id;
     document.getElementById('qNome').innerText = nome;
     document.getElementById('qValor').value = "";
+    document.getElementById('qObs').value = "";
+    
+    // Configura data mínima para amanhã (D+1)
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    const dataMin = amanha.toISOString().split('T')[0];
+    
+    const inputData = document.getElementById('qVencimento');
+    inputData.value = dataMin;
+    inputData.min = dataMin;
+    
     modalOp.show();
 };
 
@@ -177,6 +219,7 @@ window.abrirOperacao = (id, nome) => {
 async function registrarOp(tipo) {
     const rawVal = document.getElementById('qValor').value;
     const obs = document.getElementById('qObs').value.trim();
+    const vencimento = document.getElementById('qVencimento').value;
     const val = formatCurrencyToNumber(rawVal);
     
     if(!val || !selectedId) return;
@@ -184,10 +227,26 @@ async function registrarOp(tipo) {
     const ref = doc(db, "clientes", selectedId);
     const snap = await getDoc(ref);
     const dadosCliente = snap.data();
-    
+
+    // --- TRAVA DE PAGAMENTO MAIOR QUE A DÍVIDA ---
+    if (tipo === 'pagamento' && val > dadosCliente.saldo) {
+        alert(`Operação negada! O valor do pagamento (R$ ${formatNumberToCurrency(val)}) é maior que a dívida atual (R$ ${formatNumberToCurrency(dadosCliente.saldo)}).`);
+        return;
+    }
+
+    // --- TRAVA DE DATA (SEGURANÇA EXTRA NO JS) ---
+    if (tipo === 'compra') {
+        const dataHoje = new Date();
+        dataHoje.setHours(0, 0, 0, 0);
+        const dataEscolha = new Date(vencimento + "T00:00:00");
+
+        if (dataEscolha <= dataHoje) {
+            alert("A data de vencimento deve ser no mínimo para amanhã!");
+            return;
+        }
+    }
+
     const novoSaldo = tipo === 'compra' ? dadosCliente.saldo + val : dadosCliente.saldo - val;
-    
-    // INTELIGÊNCIA: Se o novo saldo for <= 0 após um pagamento, marcamos como ponto de quitação
     const quitouAgora = (tipo === 'pagamento' && novoSaldo <= 0);
 
     try {
@@ -199,15 +258,14 @@ async function registrarOp(tipo) {
             valor: val,
             tipo: tipo,
             obs: obs,
+            vencimento: tipo === 'compra' ? vencimento : null, // Salva o vencimento se for compra
             usuarioNome: currentUserData.nome,
             usuarioId: auth.currentUser.uid,
             data: new Date().toLocaleString('pt-BR'),
             ts: serverTimestamp(),
-            foiQuitacao: quitouAgora // Marca este registro como o ponto onde a conta zerou
+            foiQuitacao: quitouAgora
         });
 
-        document.getElementById('qObs').value = "";
-        document.getElementById('qValor').value = ""; // Limpa valor tbm
         modalOp.hide();
     } catch (e) {
         alert("Erro: " + e.message);
@@ -244,17 +302,20 @@ window.gerarPDF = async (id) => {
 
         const h = docSnap.data();
         
-        // --- AJUSTE AQUI ---
         // Se este registro for o marco de quitação, ativamos o corte e pulamos a inclusão dele
         if (h.foiQuitacao === true) {
             encontrouPontoCorte = true;
-            return; // Interrompe esta iteração e não executa o unshift abaixo
+            return; 
         }
 
-        // Só adiciona na tabela se NÃO for o registro de quitação
+        // Formata a data de vencimento para o formato brasileiro se existir
+        const dataVencFormatada = h.vencimento ? h.vencimento.split('-').reverse().join('/') : "-";
+
+        // Adiciona na tabela (Incluindo a nova coluna de Vencimento)
         linhas.unshift([
             h.data.split(',')[0], 
             h.tipo === 'compra' ? "ANOTADO" : "PAGOU",
+            dataVencFormatada, // Nova coluna de Vencimento
             `R$ ${formatNumberToCurrency(h.valor)}`,
             h.obs || "-",
             h.usuarioNome
@@ -306,17 +367,17 @@ window.gerarPDF = async (id) => {
     docPdf.text(`ENDEREÇO: ${cliente.endereco || "Não informado"}`, 15, yStartInfo + 12);
     docPdf.text(`CONTATO: ${cliente.telefone || "Não informado"}`, 15, yStartInfo + 18);
 
-    // --- 5. TABELA ---
+    // --- 5. TABELA (Cabeçalho atualizado com Vencimento) ---
     docPdf.autoTable({
         startY: 85,
-        head: [["Data", "Tipo", "Valor", "Obs / Detalhes", "Atendente"]],
+        head: [["Data", "Tipo", "Vencimento", "Valor", "Obs / Detalhes", "Atendente"]],
         body: linhas,
         theme: 'striped',
         headStyles: { fillColor: corPrimaria, fontSize: 9 },
         styles: { fontSize: 8, cellPadding: 2 },
         columnStyles: {
-            2: { fontStyle: 'bold' },
-            3: { cellWidth: 50 }
+            3: { fontStyle: 'bold' }, // Coluna Valor
+            4: { cellWidth: 40 }
         }
     });
 
