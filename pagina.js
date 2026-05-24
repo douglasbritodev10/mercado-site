@@ -214,7 +214,7 @@ async function registrarOp(tipo) {
     }
 }
 
-// --- GERAÇÃO DE PDF PROFISSIONAL COM INTELIGÊNCIA DE MARCO ZERO ---
+// --- GERAÇÃO DE PDF PROFISSIONAL COM INTELIGÊNCIA DE MARCO ZERO (CORRIGIDO) ---
 window.gerarPDF = async (id) => {
     const cliente = allClients.find(c => c.id === id);
 
@@ -240,28 +240,29 @@ window.gerarPDF = async (id) => {
     let encontrouPontoCorte = false;
 
     querySnap.forEach(docSnap => {
-        if (encontrouPontoCorte) return; // Para de processar registros antigos após a última quitação
+        if (encontrouPontoCorte) return; 
 
         const h = docSnap.data();
         
-        // Adicionamos no início da array (unshift) para que o PDF fique em ordem cronológica (mais antigo primeiro)
+        // --- AJUSTE AQUI ---
+        // Se este registro for o marco de quitação, ativamos o corte e pulamos a inclusão dele
+        if (h.foiQuitacao === true) {
+            encontrouPontoCorte = true;
+            return; // Interrompe esta iteração e não executa o unshift abaixo
+        }
+
+        // Só adiciona na tabela se NÃO for o registro de quitação
         linhas.unshift([
-            h.data.split(',')[0], // Apenas a data
+            h.data.split(',')[0], 
             h.tipo === 'compra' ? "ANOTADO" : "PAGOU",
             `R$ ${formatNumberToCurrency(h.valor)}`,
             h.obs || "-",
             h.usuarioNome
         ]);
-
-        // SE o registro atual tiver a marca de quitação (definida no registrarOp), 
-        // ou se for um pagamento que sabemos que zerou a conta, ativamos o corte.
-        if (h.foiQuitacao === true) {
-            encontrouPontoCorte = true;
-        }
     });
 
     // --- CONFIGURAÇÕES DE ESTILO ---
-    const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
+    const corPrimaria = [211, 47, 47]; 
     const corTexto = [45, 45, 45];
     const corSuave = [100, 100, 100];
     const carrinhoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB80lEQVR4nO2YMW7CQBBE30onpUegSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidF/AKG0X6WvGvSogAAAABJRU5ErkJggg==";
@@ -305,12 +306,10 @@ window.gerarPDF = async (id) => {
     docPdf.text(`ENDEREÇO: ${cliente.endereco || "Não informado"}`, 15, yStartInfo + 12);
     docPdf.text(`CONTATO: ${cliente.telefone || "Não informado"}`, 15, yStartInfo + 18);
 
-    // --- 5. TABELA DE HISTÓRICO FILTRADA ---
-    const colunas = ["Data", "Tipo", "Valor", "Obs / Detalhes", "Atendente"];
-
+    // --- 5. TABELA ---
     docPdf.autoTable({
         startY: 85,
-        head: [colunas],
+        head: [["Data", "Tipo", "Valor", "Obs / Detalhes", "Atendente"]],
         body: linhas,
         theme: 'striped',
         headStyles: { fillColor: corPrimaria, fontSize: 9 },
@@ -354,7 +353,6 @@ window.gerarPDF = async (id) => {
     docPdf.text(`Este extrato exibe apenas lançamentos após a última quitação total.`, 105, 280, { align: "center" });
     docPdf.text(`Documento gerado em: ${dataEmissao}`, 105, 285, { align: "center" });
 
-    // Salvar
     docPdf.save(`Extrato_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
 };
 
