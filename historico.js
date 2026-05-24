@@ -58,6 +58,10 @@ function render(data) {
         // Se houver valor, é uma operação financeira. Se não, é uma ação de sistema (Cadastro/Edição).
         const temValor = h.valor !== undefined;
 
+        // INTELIGÊNCIA DE EXIBIÇÃO: Prioriza o que estiver preenchido
+        const informacaoAdicional = h.detalhe || h.obs || '';
+        const identificacaoSujeito = h.clienteNome ? `CLIENTE: ${h.clienteNome}` : '';
+
         area.innerHTML += `
         <div class="glass-card mb-2 border-start border-4 ${isSaida ? 'border-danger' : 'border-success'}">
             <div class="hist-item-container">
@@ -67,7 +71,9 @@ function render(data) {
                     <small class="text-muted d-block">${h.data}</small>
                     
                     <div class="small fw-bold opacity-75 mt-1" style="line-height: 1.2;">
-                        ${h.detalhe || ''}
+                        ${identificacaoSujeito}
+                        ${(identificacaoSujeito && informacaoAdicional) ? '<br>' : ''}
+                        ${informacaoAdicional}
                     </div>
                 </div>
 
@@ -98,7 +104,8 @@ document.getElementById('searchHist').oninput = (e) => {
     const filtrados = todosRegistrosPeriodo.filter(reg => 
         (reg.clienteNome && reg.clienteNome.toLowerCase().includes(termo)) || 
         (reg.usuarioNome && reg.usuarioNome.toLowerCase().includes(termo)) ||
-        (reg.detalhe && reg.detalhe.toLowerCase().includes(termo))
+        (reg.detalhe && reg.detalhe.toLowerCase().includes(termo)) ||
+        (reg.obs && reg.obs.toLowerCase().includes(termo)) // Adicionado busca por obs também
     );
     render(filtrados);
 };
