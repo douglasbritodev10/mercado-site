@@ -66,9 +66,10 @@ window.addEventListener('appinstalled', (evt) => {
     btnInstalar.style.display = 'none';
 });
 
-// Registrar Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then(() => console.log("SW Ativo"));
+    navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log("Service Worker Ativo e Corrigido"))
+        .catch(err => console.log("Erro no SW:", err));
 }
 
 // --- 2. MÁSCARA DE MOEDA ---
