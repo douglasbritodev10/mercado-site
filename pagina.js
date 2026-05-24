@@ -47,10 +47,13 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function verificarVencimentosHoje() {
+    // Para testar, você pode comentar a linha do localStorage abaixo
     const hoje = new Date().toISOString().split('T')[0];
-    
     const jaAvisadoHoje = localStorage.getItem('aviso_vencimento_' + hoje);
-    if (jaAvisadoHoje) return;
+    if (jaAvisadoHoje) {
+        console.log("Notificação já enviada hoje via localStorage.");
+        return;
+    }
 
     try {
         const q = query(
@@ -63,26 +66,24 @@ async function verificarVencimentosHoje() {
         
         if (!snap.empty) {
             const totalVencidos = snap.size;
-            const titulo = "Casa & Canil: Alerta de Vencimento";
+            const titulo = "Casa & Canil: Vencimentos";
             const opcoes = {
-                body: `Bom dia! Existem ${totalVencidos} anotações vencendo hoje. Confira no painel.`,
+                body: `Existem ${totalVencidos} contas vencendo hoje!`,
                 icon: 'icon-192.png',
-                badge: 'icon-192.png', // Ícone pequeno que aparece na barra de status do Android
-                vibrate: [200, 100, 200], // Faz o celular vibrar
-                tag: 'vencimento-hoje' // Evita notificações duplicadas
+                badge: 'icon-192.png',
+                vibrate: [200, 100, 200],
+                tag: 'vencimento-hoje'
             };
 
-            // --- AJUSTE PARA CELULAR (SERVICE WORKER) ---
-            if ('serviceWorker' in navigator && Notification.permission === "granted") {
-                const reg = await navigator.serviceWorker.ready;
-                reg.showNotification(titulo, opcoes);
-            } 
-            // Fallback para computador caso o SW não esteja pronto
-            else if (Notification.permission === "granted") {
+            // Tenta disparar via Service Worker (Melhor para Android)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.showNotification(titulo, opcoes);
+                });
+            } else if (Notification.permission === "granted") {
                 new Notification(titulo, opcoes);
-            } 
-            else {
-                alert(`📢 ATENÇÃO ADMIN: Existem ${totalVencidos} contas vencendo hoje!`);
+            } else {
+                alert(`📢 ATENÇÃO: ${totalVencidos} contas vencem hoje!`);
             }
 
             localStorage.setItem('aviso_vencimento_' + hoje, 'true');
