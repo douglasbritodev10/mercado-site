@@ -1,4 +1,4 @@
-const CACHE_NAME = 'v3_casacanil';
+const CACHE_NAME = 'v5_casacanil';
 const assets = [
   './pagina.html',
   './manifest.json',
