@@ -11,39 +11,64 @@ const userCheckMsg = document.getElementById('userCheckMsg');
 let isLogin = true;
 let isNameAvailable = false;
 
-// --- 1. TROCAR ENTRE LOGIN E CADASTRO ---
+// --- 1. TROCAR ENTRE LOGIN E CADASTRO (AJUSTADO) ---
 toggle.onclick = () => {
     isLogin = !isLogin;
+    isNameAvailable = false; // Reseta a verificação ao trocar de tela
+    userCheckMsg.innerText = "";
+    regNameInput.value = "";
+    emailInput.value = "";
+    
     document.getElementById('authTitle').innerText = isLogin ? "Entrar" : "Criar Conta";
     document.getElementById('userBox').style.display = isLogin ? "none" : "block";
     document.getElementById('btnMain').innerText = isLogin ? "Acessar" : "Cadastrar";
-    toggle.innerHTML = isLogin ? 'Novo por aqui? <span style="color: var(--primary); font-weight: bold;">Cadastre-se</span>' : 'Já tem conta? <span style="color: var(--primary); font-weight: bold;">Entre aqui</span>';
+    
+    // Ajuste de labels e placeholders
+    const labelEmail = document.getElementById('labelEmail');
+    labelEmail.innerText = isLogin ? "Nome de Usuário" : "Seu Melhor E-mail";
+    emailInput.placeholder = isLogin ? "EX: JPAULO" : "exemplo@email.com";
+
+    toggle.innerHTML = isLogin ? 
+        'Novo por aqui? <span style="color: var(--primary); font-weight: bold;">Cadastre-se</span>' : 
+        'Já tem conta? <span style="color: var(--primary); font-weight: bold;">Entre aqui</span>';
 };
 
-// --- 2. FORÇAR MAIÚSCULAS E LIMITE DE 10 CARACTERES NO INPUT ---
-// Aplicamos aos dois campos para garantir a padronização
-[regNameInput, emailInput].forEach(input => {
-    input.addEventListener('input', (e) => {
-        e.target.value = e.target.value.toUpperCase().substring(0, 10);
-        
-        // Se for o campo de e-mail no LOGIN, não limitamos a 10 se tiver '@' (pois é email real)
-        if(input.id === 'email' && e.target.value.includes('@')) {
-             e.target.value = e.target.value.toUpperCase(); // Apenas maiúsculo
+// --- 2. PADRONIZAÇÃO DE INPUTS (NOME MAIÚSCULO / EMAIL LIVRE) ---
+emailInput.addEventListener('input', (e) => {
+    if (isLogin) {
+        // No LOGIN: Se não tem @, força maiúsculo e trava em 10 letras
+        if (!e.target.value.includes('@')) {
+            e.target.value = e.target.value.toUpperCase().substring(0, 10);
+            e.target.style.textTransform = "uppercase";
+        } else {
+            e.target.style.textTransform = "none";
         }
-    });
+    } else {
+        // NO CADASTRO: Email totalmente livre, sem limite e sem caixa alta forçada
+        e.target.style.textTransform = "none";
+    }
+});
+
+// Campo de Nome de Usuário no Cadastro: Sempre Maiúsculo e Max 10
+regNameInput.addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase().substring(0, 10);
 });
 
 // --- 3. VERIFICAR NOME DE USUÁRIO EM TEMPO REAL ---
 regNameInput.addEventListener('input', async (e) => {
-    const nome = e.target.value.trim().toUpperCase(); // Sempre buscar em Maiúsculo
+    const nome = e.target.value.trim().toUpperCase();
+    
     if (nome.length < 3) {
-        userCheckMsg.innerText = "";
+        userCheckMsg.innerText = "Mínimo 3 letras";
+        userCheckMsg.style.color = "orange";
+        isNameAvailable = false;
         return;
     }
 
     userCheckMsg.innerText = "Verificando...";
     userCheckMsg.style.color = "gray";
 
+    // Consulta no Firestore para ver se o nome já existe
     const q = query(collection(db, "usuarios"), where("nome", "==", nome));
     const querySnapshot = await getDocs(q);
 
