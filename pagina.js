@@ -173,7 +173,7 @@ window.abrirOperacao = (id, nome) => {
     modalOp.show();
 };
 
-// --- 4. REGISTRAR COMPRA OU PAGAMENTO COM LOG DETALHADO ---
+// --- 4. REGISTRAR COMPRA OU PAGAMENTO COM LOG DETALHADO (VERSÃO INTELIGENTE) ---
 async function registrarOp(tipo) {
     const rawVal = document.getElementById('qValor').value;
     const obs = document.getElementById('qObs').value.trim();
@@ -187,6 +187,9 @@ async function registrarOp(tipo) {
     
     const novoSaldo = tipo === 'compra' ? dadosCliente.saldo + val : dadosCliente.saldo - val;
     
+    // INTELIGÊNCIA: Se o novo saldo for <= 0 após um pagamento, marcamos como ponto de quitação
+    const quitouAgora = (tipo === 'pagamento' && novoSaldo <= 0);
+
     try {
         await updateDoc(ref, { saldo: novoSaldo });
         
@@ -195,25 +198,27 @@ async function registrarOp(tipo) {
             clienteNome: dadosCliente.nome,
             valor: val,
             tipo: tipo,
-            obs: obs, // Salva a observação
+            obs: obs,
             usuarioNome: currentUserData.nome,
             usuarioId: auth.currentUser.uid,
             data: new Date().toLocaleString('pt-BR'),
-            ts: serverTimestamp()
+            ts: serverTimestamp(),
+            foiQuitacao: quitouAgora // Marca este registro como o ponto onde a conta zerou
         });
 
-        document.getElementById('qObs').value = ""; // Limpa obs
+        document.getElementById('qObs').value = "";
+        document.getElementById('qValor').value = ""; // Limpa valor tbm
         modalOp.hide();
     } catch (e) {
         alert("Erro: " + e.message);
     }
 }
 
-// --- GERAÇÃO DE PDF PROFISSIONAL COM HISTÓRICO DETALHADO ---
+// --- GERAÇÃO DE PDF PROFISSIONAL COM INTELIGÊNCIA DE MARCO ZERO ---
 window.gerarPDF = async (id) => {
     const cliente = allClients.find(c => c.id === id);
 
-    // 1. VALIDAÇÃO: Se o saldo for 0 ou negativo, não gera o PDF
+    // 1. VALIDAÇÃO: Se o saldo for 0 ou negativo, não há o que cobrar
     if (!cliente || cliente.saldo <= 0) {
         alert("Este cliente não possui pendências financeiras (Saldo Zerado).");
         return;
@@ -222,14 +227,38 @@ window.gerarPDF = async (id) => {
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF();
     
-    // 2. BUSCA O HISTÓRICO COMPLETO NO FIRESTORE
-    // Buscamos todos os registros desse cliente para listar no PDF
+    // 2. BUSCA O HISTÓRICO COMPLETO (Ordenado do mais novo para o mais antigo)
     const q = query(
         collection(db, "historico"), 
         where("clienteId", "==", id), 
         orderBy("ts", "desc")
     );
     const querySnap = await getDocs(q);
+
+    // --- INTELIGÊNCIA: FILTRAR APENAS PENDÊNCIAS PÓS-QUITAÇÃO ---
+    const linhas = [];
+    let encontrouPontoCorte = false;
+
+    querySnap.forEach(docSnap => {
+        if (encontrouPontoCorte) return; // Para de processar registros antigos após a última quitação
+
+        const h = docSnap.data();
+        
+        // Adicionamos no início da array (unshift) para que o PDF fique em ordem cronológica (mais antigo primeiro)
+        linhas.unshift([
+            h.data.split(',')[0], // Apenas a data
+            h.tipo === 'compra' ? "ANOTADO" : "PAGOU",
+            `R$ ${formatNumberToCurrency(h.valor)}`,
+            h.obs || "-",
+            h.usuarioNome
+        ]);
+
+        // SE o registro atual tiver a marca de quitação (definida no registrarOp), 
+        // ou se for um pagamento que sabemos que zerou a conta, ativamos o corte.
+        if (h.foiQuitacao === true) {
+            encontrouPontoCorte = true;
+        }
+    });
 
     // --- CONFIGURAÇÕES DE ESTILO ---
     const corPrimaria = [211, 47, 47]; // Vermelho Casa & Canil
@@ -267,7 +296,7 @@ window.gerarPDF = async (id) => {
     docPdf.setFontSize(12);
     docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
     docPdf.setFont("helvetica", "bold");
-    docPdf.text("EXTRATO DETALHADO DE CONTA", 105, 50, { align: "center" });
+    docPdf.text("EXTRATO DE PENDÊNCIAS ATUAIS", 105, 50, { align: "center" });
 
     const yStartInfo = 60;
     docPdf.setFontSize(10);
@@ -276,20 +305,8 @@ window.gerarPDF = async (id) => {
     docPdf.text(`ENDEREÇO: ${cliente.endereco || "Não informado"}`, 15, yStartInfo + 12);
     docPdf.text(`CONTATO: ${cliente.telefone || "Não informado"}`, 15, yStartInfo + 18);
 
-    // --- 5. TABELA DE HISTÓRICO (LANÇAMENTOS EM ABERTO) ---
+    // --- 5. TABELA DE HISTÓRICO FILTRADA ---
     const colunas = ["Data", "Tipo", "Valor", "Obs / Detalhes", "Atendente"];
-    const linhas = [];
-
-    querySnap.forEach(doc => {
-        const h = doc.data();
-        linhas.push([
-            h.data.split(',')[0], // Apenas a data
-            h.tipo === 'compra' ? "ANOTADO" : "PAGOU",
-            `R$ ${formatNumberToCurrency(h.valor)}`,
-            h.obs || "-",
-            h.usuarioNome
-        ]);
-    });
 
     docPdf.autoTable({
         startY: 85,
@@ -299,15 +316,13 @@ window.gerarPDF = async (id) => {
         headStyles: { fillColor: corPrimaria, fontSize: 9 },
         styles: { fontSize: 8, cellPadding: 2 },
         columnStyles: {
-            2: { fontStyle: 'bold' }, // Valor em negrito
-            3: { cellWidth: 50 }      // Coluna de Obs mais larga
+            2: { fontStyle: 'bold' },
+            3: { cellWidth: 50 }
         }
     });
 
     // --- 6. RESUMO FINANCEIRO FINAL ---
     let finalY = docPdf.lastAutoTable.finalY + 10;
-
-    // Verificar se precisa de nova página para o fechamento
     if (finalY > 250) {
         docPdf.addPage();
         finalY = 20;
@@ -328,7 +343,7 @@ window.gerarPDF = async (id) => {
     docPdf.setFontSize(14);
     docPdf.setTextColor(corPrimaria[0], corPrimaria[1], corPrimaria[2]);
     docPdf.setFont("helvetica", "bold");
-    docPdf.text("SALDO DEVEDOR ATUAL:", 20, finalY + 20);
+    docPdf.text("VALOR TOTAL PARA QUITAÇÃO:", 20, finalY + 20);
     docPdf.text(`R$ ${formatNumberToCurrency(cliente.saldo)}`, 190, finalY + 20, { align: "right" });
 
     // --- 7. RODAPÉ ---
@@ -336,6 +351,7 @@ window.gerarPDF = async (id) => {
     docPdf.setFontSize(8);
     docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
     docPdf.setFont("helvetica", "italic");
+    docPdf.text(`Este extrato exibe apenas lançamentos após a última quitação total.`, 105, 280, { align: "center" });
     docPdf.text(`Documento gerado em: ${dataEmissao}`, 105, 285, { align: "center" });
 
     // Salvar
