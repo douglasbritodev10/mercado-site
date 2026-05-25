@@ -47,7 +47,12 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function verificarVencimentosHoje() {
-    const hoje = new Date().toISOString().split('T')[0];
+    // AJUSTE DE DATA: Garante que o "hoje" siga o fuso de Brasília (America/Sao_Paulo)
+    // Isso evita que o sistema mude de dia antes da meia-noite real no Brasil.
+    const hoje = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date()).split('/').reverse().join('-');
     
     const jaAvisadoHoje = localStorage.getItem('aviso_vencimento_' + hoje);
     if (jaAvisadoHoje) {
@@ -65,8 +70,8 @@ async function verificarVencimentosHoje() {
         const snap = await getDocs(q);
         
         if (!snap.empty) {
-            // --- NOVA LÓGICA: MAPEANDO CLIENTES E VALORES ---
-            const resumoClientes = {}; // Objeto para somar valores por cliente
+            // --- LÓGICA DE MAPEAMENTO (MANTIDA) ---
+            const resumoClientes = {}; 
 
             snap.forEach(docSnap => {
                 const data = docSnap.data();
@@ -95,10 +100,10 @@ async function verificarVencimentosHoje() {
                 badge: 'icon-192.png',
                 vibrate: [200, 100, 200],
                 tag: 'vencimento-hoje',
-                renotify: true // Permite notificar novamente se o arquivo mudar
+                renotify: true 
             };
 
-            // Envio da Notificação
+            // Envio da Notificação (MANTIDO)
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.showNotification(titulo, opcoes);
@@ -236,9 +241,14 @@ window.alternarDetalhes = async (id) => {
 
     let html = `<h6 class="fw-bold small text-uppercase mb-2">Últimos Lançamentos:</h6>`;
     
-    // Pegamos a data de hoje sem horas para comparar apenas o dia
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    // --- AJUSTE PARA FUSO HORÁRIO DE BRASÍLIA ---
+    // Pega a data atual formatada para o Brasil e transforma em YYYY-MM-DD para comparar
+    const dataBrasilStr = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date()).split('/').reverse().join('-');
+    
+    const hoje = new Date(dataBrasilStr + "T00:00:00");
 
     snap.forEach(d => {
         const h = d.data();
@@ -254,6 +264,10 @@ window.alternarDetalhes = async (id) => {
                 // VENCIDO: Vermelho
                 classeCorVencimento = "text-danger fw-bold";
                 avisoVencimento = `⚠️ VENCIDO EM: ${h.vencimento.split('-').reverse().join('/')}`;
+            } else if (dataVenc.getTime() === hoje.getTime()) {
+                // VENCE HOJE: Laranja/Amarelo (Opcional, mas ajuda a destacar)
+                classeCorVencimento = "text-warning fw-bold";
+                avisoVencimento = `🔔 VENCE HOJE: ${h.vencimento.split('-').reverse().join('/')}`;
             } else {
                 // EM DIA: Verde
                 classeCorVencimento = "text-success fw-bold";
@@ -287,8 +301,13 @@ window.abrirOperacao = (id, nome) => {
     document.getElementById('qValor').value = "";
     document.getElementById('qObs').value = "";
     
-    // Configura data mínima para amanhã (D+1)
-    const amanha = new Date();
+    // AJUSTE: Define amanhã com base no fuso de Brasília
+    const dataBrasil = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date()).split('/').reverse().join('-');
+    
+    const amanha = new Date(dataBrasil + "T00:00:00");
     amanha.setDate(amanha.getDate() + 1);
     const dataMin = amanha.toISOString().split('T')[0];
     
