@@ -1,6 +1,17 @@
-const CACHE_NAME = 'v6_casacanil'; // Subi para v6 para forçar o celular a atualizar
+const CACHE_NAME = 'v10_casacanil'; // Sempre suba a versão ao mudar esta lista
+
 const assets = [
+  './',                   // Raiz (geralmente index.html)
+  './index.html',
   './pagina.html',
+  './clientes.html',
+  './historico.html',
+  './usuarios.html',
+  './pagina.js',
+  './clientes.js',
+  './historico.js',
+  './usuarios.js',
+  './firebase-config.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
