@@ -470,17 +470,26 @@ window.gerarPDF = async (id) => {
     docPdf.text(`ENDEREÇO: ${cliente.endereco || "Não informado"}`, 15, yStartInfo + 12);
     docPdf.text(`CONTATO: ${cliente.telefone || "Não informado"}`, 15, yStartInfo + 18);
 
-    // --- 5. TABELA (Cabeçalho atualizado com Vencimento) ---
+    // --- 5. TABELA AJUSTADA ---
     docPdf.autoTable({
         startY: 85,
         head: [["Data", "Tipo", "Vencimento", "Valor", "Obs / Detalhes", "Atendente"]],
         body: linhas,
         theme: 'striped',
         headStyles: { fillColor: corPrimaria, fontSize: 9 },
-        styles: { fontSize: 8, cellPadding: 2 },
+        styles: { 
+            fontSize: 8, 
+            cellPadding: 2,
+            overflow: 'linebreak', // Garante que o texto quebre a linha
+            valign: 'middle' 
+        },
         columnStyles: {
-            3: { fontStyle: 'bold' }, // Coluna Valor
-            4: { cellWidth: 40 }
+            0: { cellWidth: 22 }, // Data
+            1: { cellWidth: 20 }, // Tipo
+            2: { cellWidth: 22 }, // Vencimento
+            3: { cellWidth: 25, fontStyle: 'bold' }, // Valor
+            4: { cellWidth: 'auto', overflow: 'linebreak' }, // Obs - Ajuste automático para ocupar o espaço
+            5: { cellWidth: 25 }  // Atendente
         }
     });
 
