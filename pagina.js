@@ -479,10 +479,10 @@ window.gerarPDF = async (id) => {
         columnStyles: {
             0: { cellWidth: 22, halign: 'center' },
             1: { cellWidth: 20, halign: 'center' },
-            2: { cellWidth: 22, halign: 'center' },
+            2: { cellWidth: 25, halign: 'center' },
             3: { cellWidth: 25, fontStyle: 'bold', halign: 'right' },
             4: { cellWidth: 'auto' }, // Deixa o Obs crescer o máximo possível
-            5: { cellWidth: 20, halign: 'center' }
+            5: { cellWidth: 25, halign: 'center' }
         }
     });
 
