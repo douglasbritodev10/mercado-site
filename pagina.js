@@ -379,7 +379,6 @@ async function registrarOp(tipo) {
 window.gerarPDF = async (id) => {
     const cliente = allClients.find(c => c.id === id);
 
-    // 1. VALIDAÇÃO: Se o saldo for 0 ou negativo, não há o que cobrar
     if (!cliente || cliente.saldo <= 0) {
         alert("Este cliente não possui pendências financeiras (Saldo Zerado).");
         return;
@@ -388,7 +387,6 @@ window.gerarPDF = async (id) => {
     const { jsPDF } = window.jspdf;
     const docPdf = new jsPDF();
     
-    // 2. BUSCA O HISTÓRICO COMPLETO (Ordenado do mais novo para o mais antigo)
     const q = query(
         collection(db, "historico"), 
         where("clienteId", "==", id), 
@@ -396,7 +394,6 @@ window.gerarPDF = async (id) => {
     );
     const querySnap = await getDocs(q);
 
-    // --- INTELIGÊNCIA: FILTRAR APENAS PENDÊNCIAS PÓS-QUITAÇÃO ---
     const linhas = [];
     let encontrouPontoCorte = false;
 
@@ -405,31 +402,30 @@ window.gerarPDF = async (id) => {
 
         const h = docSnap.data();
         
-        // Se este registro for o marco de quitação, ativamos o corte e pulamos a inclusão dele
         if (h.foiQuitacao === true) {
             encontrouPontoCorte = true;
             return; 
         }
 
-        // Formata a data de vencimento para o formato brasileiro se existir
         const dataVencFormatada = h.vencimento ? h.vencimento.split('-').reverse().join('/') : "-";
 
-        // Adiciona na tabela (Incluindo a nova coluna de Vencimento)
+        // MELHORIA PROFISSIONAL: Limpa quebras de linha e espaços extras da observação
+        const obsLimpa = h.obs ? h.obs.replace(/\n/g, ', ').replace(/\s\s+/g, ' ').trim() : "-";
+
         linhas.unshift([
             h.data.split(',')[0], 
             h.tipo === 'compra' ? "ANOTADO" : "PAGOU",
-            dataVencFormatada, // Nova coluna de Vencimento
+            dataVencFormatada,
             `R$ ${formatNumberToCurrency(h.valor)}`,
-            h.obs || "-",
+            obsLimpa, // Usando a versão limpa e organizada
             h.usuarioNome
         ]);
     });
 
-    // --- CONFIGURAÇÕES DE ESTILO ---
     const corPrimaria = [211, 47, 47]; 
     const corTexto = [45, 45, 45];
     const corSuave = [100, 100, 100];
-    const carrinhoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB80lEQVR4nO2YMW7CQBBE30onpUegSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidF/AKG0X6WvGvSogAAAABJRU5ErkJggg==";
+    const carrinhoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB80lEQVR4nO2YMW7CQBBE30onpUegSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSAnSREmREidFSpQSInUmSInSREmREidFSpQSInUmSInSREmREidF/AKG0X6WvGvSogAAAABJRU5ErkJggg==";
 
     let logoBase64 = "";
     try {
@@ -438,7 +434,6 @@ window.gerarPDF = async (id) => {
         logoBase64 = carrinhoBase64;
     }
 
-    // --- 3. CABEÇALHO ---
     if (logoBase64) {
         docPdf.addImage(logoBase64, 'PNG', 15, 12, 22, 22);
     }
@@ -457,7 +452,6 @@ window.gerarPDF = async (id) => {
     docPdf.setDrawColor(220, 220, 220);
     docPdf.line(15, 40, 195, 40);
 
-    // --- 4. DADOS DO CLIENTE ---
     docPdf.setFontSize(12);
     docPdf.setTextColor(corTexto[0], corTexto[1], corTexto[2]);
     docPdf.setFont("helvetica", "bold");
@@ -470,30 +464,28 @@ window.gerarPDF = async (id) => {
     docPdf.text(`ENDEREÇO: ${cliente.endereco || "Não informado"}`, 15, yStartInfo + 12);
     docPdf.text(`CONTATO: ${cliente.telefone || "Não informado"}`, 15, yStartInfo + 18);
 
-    // --- 5. TABELA AJUSTADA ---
     docPdf.autoTable({
         startY: 85,
         head: [["Data", "Tipo", "Vencimento", "Valor", "Obs / Detalhes", "Atendente"]],
         body: linhas,
         theme: 'striped',
-        headStyles: { fillColor: corPrimaria, fontSize: 9 },
+        headStyles: { fillColor: corPrimaria, fontSize: 9, halign: 'center' },
         styles: { 
             fontSize: 8, 
-            cellPadding: 2,
-            overflow: 'linebreak', // Garante que o texto quebre a linha
+            cellPadding: 3, // Aumentado para melhor leitura
+            overflow: 'linebreak',
             valign: 'middle' 
         },
         columnStyles: {
-            0: { cellWidth: 22 }, // Data
-            1: { cellWidth: 20 }, // Tipo
-            2: { cellWidth: 22 }, // Vencimento
-            3: { cellWidth: 25, fontStyle: 'bold' }, // Valor
-            4: { cellWidth: 'auto', overflow: 'linebreak' }, // Obs - Ajuste automático para ocupar o espaço
-            5: { cellWidth: 25 }  // Atendente
+            0: { cellWidth: 22, halign: 'center' },
+            1: { cellWidth: 20, halign: 'center' },
+            2: { cellWidth: 22, halign: 'center' },
+            3: { cellWidth: 25, fontStyle: 'bold', halign: 'right' },
+            4: { cellWidth: 'auto' }, // Deixa o Obs crescer o máximo possível
+            5: { cellWidth: 20, halign: 'center' }
         }
     });
 
-    // --- 6. RESUMO FINANCEIRO FINAL ---
     let finalY = docPdf.lastAutoTable.finalY + 10;
     if (finalY > 250) {
         docPdf.addPage();
@@ -518,7 +510,6 @@ window.gerarPDF = async (id) => {
     docPdf.text("VALOR TOTAL PARA QUITAÇÃO:", 20, finalY + 20);
     docPdf.text(`R$ ${formatNumberToCurrency(cliente.saldo)}`, 190, finalY + 20, { align: "right" });
 
-    // --- 7. RODAPÉ ---
     const dataEmissao = new Date().toLocaleString('pt-BR');
     docPdf.setFontSize(8);
     docPdf.setTextColor(corSuave[0], corSuave[1], corSuave[2]);
